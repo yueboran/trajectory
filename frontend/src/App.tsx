@@ -8,7 +8,6 @@ import { Sparkles, Menu, Search, Compass, Share2, Award, ArrowLeft, Bookmark, Us
 import BottomNav from "./components/BottomNav";
 import MindMapSection from "./components/MindMapSection";
 import Footer from "./components/Footer";
-import ProjectCard from "./components/ProjectCard";
 import ArchiveDetailView from "./components/ArchiveDetailView";
 import SubmitForm from "./components/SubmitForm";
 import TimelineFeed from "./components/TimelineFeed";
