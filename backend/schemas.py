@@ -1,6 +1,34 @@
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 
+class UserCreate(BaseModel):
+    email: str
+    password: str
+    username: str
+    verificationCode: str
+
+class SendCodeRequest(BaseModel):
+    email: str
+
+class UserLogin(BaseModel):
+    email: str
+    password: str
+
+class UserResponse(BaseModel):
+    id: str
+    email: str
+    username: str
+    avatarUrl: Optional[str] = None
+    created_at: str
+
+    class Config:
+        from_attributes = True
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+    user: UserResponse
+
 class RadarDimensions(BaseModel):
     concept: int = 0
     research: int = 0
@@ -92,6 +120,8 @@ class ProjectUpdate(BaseModel):
     description: Optional[str] = None
     radar: Optional[RadarDimensions] = None
     tags: Optional[List[str]] = None
+    ratingFields: Optional[List[str]] = None
+    customInputs: Optional[List[Dict[str, str]]] = None
 
 class Project(ProjectBase):
     id: str
@@ -100,6 +130,7 @@ class Project(ProjectBase):
     hotness: str
     likes: int
     bookmarked: bool
+    comments: Optional[List[Comment]] = None
 
     class Config:
         from_attributes = True
@@ -109,6 +140,19 @@ class PaginatedResponse(BaseModel):
     total: int
     page: int
     limit: int
+
+class FeedbackCreate(BaseModel):
+    user_name: str
+    content: str
+
+class FeedbackResponse(BaseModel):
+    id: str
+    user_name: str
+    content: str
+    created_at: str
+
+    class Config:
+        from_attributes = True
 
 class ApiResponse(BaseModel):
     code: int = 200

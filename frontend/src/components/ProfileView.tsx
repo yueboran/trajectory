@@ -6,7 +6,7 @@
  * 将用户的个人主页设计为"基金经理的投资组合"视图
  */
 
-import React, { useState, MouseEvent, useMemo } from "react";
+import React, { useState, MouseEvent, useMemo, useRef } from "react";
 import {
   User, Mail, TrendingUp, TrendingDown, Flame, Zap,
   Briefcase, Heart, Bookmark, Star, ChevronRight,
@@ -21,7 +21,10 @@ import CategoryCascader from "./CategoryCascader";
 
 // ========== 组件接口定义 ==========
 interface ProfileViewProps {
-  userEmail?: string;
+  currentUser?: any;
+  onNavigateToAuth?: () => void;
+  onLogout?: () => void;
+  onAvatarUpload?: (file: File) => void;
   bookmarkedProjects: Project[];
   likedProjects: string[];
   submittedCount: number;
@@ -171,7 +174,10 @@ function HoldingRow({
 
 // ========== 主组件 ==========
 export default function ProfileView({
-  userEmail = "yueboran666@gmail.com",
+  currentUser,
+  onNavigateToAuth,
+  onLogout,
+  onAvatarUpload,
   bookmarkedProjects,
   likedProjects,
   submittedCount,
@@ -429,6 +435,59 @@ export default function ProfileView({
     );
   }
 
+  if (!currentUser) {
+    return (
+      <div className="min-h-[100dvh] bg-[#18191c] pb-24 animate-fade-in select-none font-sans w-full flex flex-col items-center">
+        <div className="w-full max-w-2xl bg-[#232429] md:rounded-lg overflow-hidden shadow-2xl">
+          {/* Top Hero Section */}
+          <div className="relative w-full h-[200px] md:h-[240px] bg-black group overflow-hidden">
+            <div 
+              className="absolute inset-0 bg-cover bg-center opacity-60 transition-transform duration-1000 group-hover:scale-105"
+              style={{ backgroundImage: 'url(/images/banners/profile_hero.png)' }}
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#232429] via-[#232429]/60 to-transparent" />
+            
+            <div className="absolute inset-0 flex flex-col justify-end p-6 md:p-8 z-10 pb-8">
+              <div className="flex items-center gap-5 mb-3">
+                <div className="w-16 h-16 md:w-20 md:h-20 shrink-0 rounded-full bg-gradient-to-tr from-[#d0bcff] to-[#4cd7f6] p-[2px] shadow-[0_0_20px_rgba(208,188,255,0.3)]">
+                  <div className="w-full h-full bg-[#0b1326] rounded-full flex items-center justify-center overflow-hidden bg-cover bg-center">
+                    <User className="w-8 h-8 text-[#A0A0A0]" />
+                  </div>
+                </div>
+                <div className="flex flex-col justify-center">
+                  <div className="flex items-center gap-3">
+                    <h1 
+                      onClick={onNavigateToAuth}
+                      className="text-2xl md:text-[28px] font-display font-black tracking-tight text-[#A0A0A0] hover:text-white underline decoration-[#A0A0A0]/50 hover:decoration-white/80 cursor-pointer transition-all drop-shadow-lg"
+                    >
+                      未登录
+                    </h1>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div className="px-4 md:px-6 py-2 -mt-6 relative z-20 flex flex-col items-center justify-center pt-24 pb-32">
+            <div className="w-16 h-16 mb-5 rounded-full bg-[#1A1B1E] border border-white/5 flex items-center justify-center shadow-inner">
+              <User className="w-6 h-6 text-[#A0A0A0]/50" />
+            </div>
+            <h2 className="text-[18px] font-black tracking-wide text-white mb-3">您的个人档案室暂未开放</h2>
+            <p className="text-[#808080] text-[13px] leading-relaxed max-w-sm mb-8 text-center">
+              登录后即可在此管理您的专属档案收藏、查阅详细的统计分析报告，并追踪您的所有待发布记录。
+            </p>
+            <button 
+              onClick={onNavigateToAuth}
+              className="px-8 py-3.5 bg-white text-black text-sm font-bold rounded-full hover:bg-gray-200 transition-colors shadow-[0_0_20px_rgba(255,255,255,0.2)]"
+            >
+              立即登录 / 注册
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-[100dvh] bg-[#18191c] pb-24 animate-fade-in select-none font-sans w-full flex flex-col items-center">
       
@@ -447,17 +506,58 @@ export default function ProfileView({
           <div className="absolute inset-0 flex flex-col justify-end p-6 md:p-8 z-10 pb-8">
             <div className="flex items-center gap-5 mb-3">
               {/* Avatar */}
-              <div className="w-16 h-16 md:w-20 md:h-20 shrink-0 rounded-full bg-gradient-to-tr from-[#d0bcff] to-[#4cd7f6] p-[2px] shadow-[0_0_20px_rgba(208,188,255,0.3)]">
-                <div 
-                  className="w-full h-full bg-[#0b1326] rounded-full flex items-center justify-center overflow-hidden bg-cover bg-center"
-                  style={{ backgroundImage: 'url(/images/mocks/hot_thumb_1.png)' }}
-                />
+              <div 
+                className={`w-16 h-16 md:w-20 md:h-20 shrink-0 rounded-full bg-gradient-to-tr from-[#d0bcff] to-[#4cd7f6] p-[2px] shadow-[0_0_20px_rgba(208,188,255,0.3)] ${currentUser ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
+                onClick={() => {
+                  if (currentUser && onAvatarUpload) {
+                    const input = document.createElement('input');
+                    input.type = 'file';
+                    input.accept = 'image/*';
+                    input.onchange = (e: any) => {
+                      if (e.target.files && e.target.files[0]) {
+                        onAvatarUpload(e.target.files[0]);
+                      }
+                    };
+                    input.click();
+                  }
+                }}
+              >
+                <div className="w-full h-full bg-[#0b1326] rounded-full flex items-center justify-center overflow-hidden bg-cover bg-center">
+                  {currentUser && currentUser.avatarUrl ? (
+                    <img src={currentUser.avatarUrl} alt={currentUser.username} className="w-full h-full object-cover" />
+                  ) : (
+                    <User className="w-8 h-8 text-[#A0A0A0]" />
+                  )}
+                </div>
               </div>
 
               {/* Username */}
-              <h2 className="text-white font-display font-black text-2xl md:text-3xl tracking-tight drop-shadow-lg leading-tight">
-                {userEmail.split("@")[0]}
-              </h2>
+              <div className="flex flex-col justify-center">
+                <div className="flex items-center gap-3">
+                  {currentUser ? (
+                    <>
+                      <h1 className="text-2xl md:text-[28px] font-display font-black tracking-tight text-white drop-shadow-lg">
+                        {currentUser.username}
+                      </h1>
+                      {onLogout && (
+                        <button 
+                          onClick={onLogout}
+                          className="text-xs bg-white/10 hover:bg-[#e50914] px-3 py-1 rounded-full text-white transition-colors"
+                        >
+                          注销
+                        </button>
+                      )}
+                    </>
+                  ) : (
+                    <h1 
+                      onClick={onNavigateToAuth}
+                      className="text-2xl md:text-[28px] font-display font-black tracking-tight text-[#A0A0A0] hover:text-white underline decoration-[#A0A0A0]/50 hover:decoration-white/80 cursor-pointer transition-all drop-shadow-lg"
+                    >
+                      未登录
+                    </h1>
+                  )}
+                </div>
+              </div>
             </div>
             
           </div>
@@ -766,14 +866,6 @@ export default function ProfileView({
             </div>
           </div>
           
-          {/* Endowment Effect Guide */}
-          {stats.totalHoldings > 0 && (
-            <div className="py-6 pt-4">
-              <button className="w-full bg-transparent border border-gray-600 hover:border-gray-400 text-white font-bold py-3.5 rounded transition-colors text-xs tracking-wider">
-                发现更多项目 (EXPLORE)
-              </button>
-            </div>
-          )}
 
         </div>
       </div>

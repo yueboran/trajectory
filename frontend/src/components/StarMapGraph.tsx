@@ -214,7 +214,7 @@ export default function StarMapGraph({ projects, onSelectProject }: StarMapGraph
       {/* 深空背景层 */}
       <div 
         className="absolute inset-0 bg-cover bg-center opacity-30 pointer-events-none transition-transform duration-[20s] group-hover:scale-110"
-        style={{ backgroundImage: 'url(/images/banners/profile_hero.png)', filter: 'brightness(0.6) contrast(1.2) grayscale(0.2)' }}
+        style={{ backgroundImage: 'url(/api/static/images/banners/profile_hero.png)', filter: 'brightness(0.6) contrast(1.2) grayscale(0.2)' }}
       />
       <div className="absolute inset-0 bg-gradient-to-t from-[#030712] via-transparent to-[#030712]/80 pointer-events-none" />
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-transparent via-[#030712]/40 to-[#030712] pointer-events-none" />

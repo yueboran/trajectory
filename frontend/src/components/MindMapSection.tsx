@@ -85,12 +85,18 @@ interface MindMapSectionProps {
   onBrowseProjects?: () => void;
   onSubmitIdea?: () => void;
   onCategorySelect?: (filter: string) => void;
+  isLoggedIn?: boolean;
 }
 
-export default function MindMapSection({ onBrowseProjects, onSubmitIdea, onCategorySelect }: MindMapSectionProps) {
+export default function MindMapSection({ onBrowseProjects, onSubmitIdea, onCategorySelect, isLoggedIn = false }: MindMapSectionProps) {
   const [activeCategoryId, setActiveCategoryId] = useState("1");
   const [activeSubCategoryId, setActiveSubCategoryId] = useState("1-1");
-  const [isCarouselPaused, setIsCarouselPaused] = useState(true);
+  const [isCarouselPaused, setIsCarouselPaused] = useState(isLoggedIn);
+
+  // 当登录状态改变时，自动切换轮播图的暂停/播放
+  useEffect(() => {
+    setIsCarouselPaused(isLoggedIn);
+  }, [isLoggedIn]);
   
   // 自动轮播定时器
   useEffect(() => {
@@ -322,7 +328,7 @@ export default function MindMapSection({ onBrowseProjects, onSubmitIdea, onCateg
                         key={child.id} 
                         node={child} 
                         isRoot={true} 
-                        onClick={() => onCategorySelect && onCategorySelect(fullTag)}
+                        onClick={isLoggedIn ? () => onCategorySelect && onCategorySelect(fullTag) : undefined}
                       />
                     );
                   })}

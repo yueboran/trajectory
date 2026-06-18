@@ -17,5 +17,5 @@ COPY . .
 # 暴露 8000 端口
 EXPOSE 8000
 
-# 启动服务（在 Docker 中固定端口为 8000）
-CMD ["uv", "run", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# 启动服务（在 Docker 中固定端口为 8000，开启多进程以应对并发）
+CMD ["uv", "run", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]

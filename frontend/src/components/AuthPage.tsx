@@ -1,22 +1,114 @@
-import React from "react";
-import { ArrowLeft, User, Apple, Chrome, Twitch, Heart, HelpCircle, Mail, MessageSquare, Twitter, Youtube, Instagram, Facebook } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { ArrowLeft } from "lucide-react";
 
 interface AuthPageProps {
   onBack: () => void;
 }
 
 export default function AuthPage({ onBack }: AuthPageProps) {
+  const [isLogin, setIsLogin] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
+  
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [username, setUsername] = useState("");
+  const [verificationCode, setVerificationCode] = useState("");
+  
+  const [countdown, setCountdown] = useState(0);
+  const [errorMsg, setErrorMsg] = useState("");
+
+  useEffect(() => {
+    let timer: any;
+    if (countdown > 0) {
+      timer = setTimeout(() => setCountdown(countdown - 1), 1000);
+    }
+    return () => clearTimeout(timer);
+  }, [countdown]);
+
+  const handleSendCode = async () => {
+    if (!email) {
+      setErrorMsg("请先输入邮箱地址");
+      return;
+    }
+    setErrorMsg("");
+    try {
+      const response = await fetch("/api/auth/send-code", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email })
+      });
+      const data = await response.json();
+      if (response.ok && data.code === 200) {
+        setCountdown(60);
+      } else {
+        setErrorMsg(data.detail || data.message || "发送失败");
+      }
+    } catch (err: any) {
+      setErrorMsg("网络异常，请稍后重试");
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg("");
+
+    if (!isLogin && password !== confirmPassword) {
+      setErrorMsg("两次输入的密码不一致");
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const endpoint = isLogin ? "/api/auth/login" : "/api/auth/register";
+      const payload = isLogin 
+        ? { email, password } 
+        : { email, password, username, verificationCode };
+
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
+      });
+
+      let data;
+      try {
+        data = await response.json();
+      } catch (e) {
+        throw new Error(`服务器异常 (${response.status})，请稍后重试`);
+      }
+
+      if (!response.ok || (data.code && data.code !== 200)) {
+        throw new Error(data.detail || data.message || "请求失败，请检查输入");
+      }
+
+      // 根据 API 的实际返回结构处理数据
+      const token = data.data?.access_token || data.access_token;
+      const user = data.data?.user || data.user;
+      
+      localStorage.setItem("stars:token", token);
+      localStorage.setItem("stars:user", JSON.stringify(user));
+      
+      setIsLoading(false);
+      onBack();
+      window.location.reload();
+
+    } catch (err: any) {
+      setErrorMsg(err.message || "网络错误，请稍后重试");
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="absolute inset-0 z-50 flex bg-white animate-fade-in h-[100dvh] w-full overflow-hidden">
-      {/* Left Panel: Hero Image (Hidden on mobile) */}
       <div 
         className="hidden lg:block lg:w-[45%] h-full bg-cover bg-center relative"
-        style={{ backgroundImage: 'url(/images/auth/auth_split_banner.png)' }}
+        style={{ backgroundImage: 'url(/api/static/images/auth/auth_split_banner.png)' }}
       >
-        {/* Optional inner overlay if needed to darken */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/20" />
-        
-        {/* Floating Back Button on Image */}
         <button 
           onClick={onBack}
           className="absolute top-6 left-6 flex items-center justify-center w-10 h-10 rounded-full bg-black/40 hover:bg-black/60 text-white backdrop-blur-md transition-colors border border-white/10"
@@ -25,10 +117,7 @@ export default function AuthPage({ onBack }: AuthPageProps) {
         </button>
       </div>
 
-      {/* Right Panel: Auth Form */}
       <div className="w-full lg:w-[55%] h-full flex flex-col relative overflow-y-auto bg-white">
-        
-        {/* Mobile Back Button */}
         <button 
           onClick={onBack}
           className="lg:hidden absolute top-4 left-4 flex items-center justify-center w-10 h-10 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-800 transition-colors"
@@ -38,78 +127,118 @@ export default function AuthPage({ onBack }: AuthPageProps) {
 
         <div className="flex-1 flex flex-col items-center justify-center px-8 sm:px-16 py-12">
           
-          {/* Logo (Mocking the D&D Beyond Header Logo) */}
-          <div className="mb-12 flex flex-col items-center">
-            <h1 className="font-display text-4xl sm:text-5xl font-black tracking-tighter text-gray-900 mb-1">
-              <span className="text-[#e50914]">灵感</span>星图
+          <div className="mb-10 flex flex-col items-center">
+            <h1 className="font-display text-4xl sm:text-5xl font-black tracking-tighter text-gray-900 mb-1 select-none">
+              <span className="text-[#e50914]">迹</span>向
             </h1>
             <div className="h-1 w-full bg-[#e50914]" />
           </div>
 
-          <div className="w-full max-w-[340px]">
-            <h2 className="text-xl font-bold text-gray-900 mb-6 font-sans">Sign In</h2>
-            
-            <div className="space-y-4">
-              {/* Wizards Login (Mocked as Primary/Custom) */}
-              <button className="w-full flex items-center h-[52px] bg-[#6149D2] hover:bg-[#503bb3] text-white transition-colors relative shadow-sm border border-[#6149D2]">
-                <div className="w-[52px] h-full flex items-center justify-center bg-white border-r border-[#6149D2]">
-                  {/* Wizards 'W' mock icon */}
-                  <span className="font-serif font-bold text-[#6149D2] text-2xl leading-none pt-1">W</span>
-                </div>
-                <span className="flex-1 text-center font-semibold text-[15px] pr-8">Sign in with Wizards</span>
-              </button>
+          <div className="w-full max-w-[360px]">
+            <h2 className="text-2xl font-bold text-gray-900 mb-6 font-sans text-center">
+              {isLogin ? "欢迎回来" : "创建您的账号"}
+            </h2>
 
-              {/* Divider */}
-              <div className="flex items-center justify-center py-2">
-                <div className="w-8 h-[1px] bg-gray-300" />
+            {errorMsg && (
+              <div className="mb-4 p-3 bg-red-50 text-red-600 text-sm rounded border border-red-100 text-center">
+                {errorMsg}
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {!isLogin && (
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">昵称</label>
+                  <input
+                    type="text"
+                    required
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#e50914]/50 focus:border-[#e50914] transition-colors"
+                  />
+                </div>
+              )}
+
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">邮箱</label>
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#e50914]/50 focus:border-[#e50914] transition-colors"
+                />
               </div>
 
-              {/* Apple Login */}
-              <button className="w-full flex items-center h-[52px] bg-black hover:bg-gray-900 text-white transition-colors relative shadow-sm border border-black">
-                <div className="w-[52px] h-full flex items-center justify-center bg-white border-r border-black text-black">
-                  <Apple className="w-6 h-6 fill-current" />
+              {!isLogin && (
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">验证码</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      required
+                      value={verificationCode}
+                      onChange={(e) => setVerificationCode(e.target.value)}
+                      className="flex-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#e50914]/50 focus:border-[#e50914] transition-colors"
+                    />
+                    <button
+                      type="button"
+                      disabled={countdown > 0}
+                      onClick={handleSendCode}
+                      className="px-4 py-3 bg-gray-100 text-gray-700 text-sm font-bold rounded-lg border border-gray-200 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors min-w-[100px]"
+                    >
+                      {countdown > 0 ? `${countdown}s 后重发` : "获取验证码"}
+                    </button>
+                  </div>
                 </div>
-                <span className="flex-1 text-center font-semibold text-[15px] pr-8">Sign in with Apple</span>
-              </button>
+              )}
 
-              {/* Google Login */}
-              <button className="w-full flex items-center h-[52px] bg-[#4285F4] hover:bg-[#3367d6] text-white transition-colors relative shadow-sm border border-[#4285F4]">
-                <div className="w-[52px] h-full flex items-center justify-center bg-white border-r border-[#4285F4] text-[#4285F4]">
-                  <Chrome className="w-6 h-6" />
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">密码</label>
+                <input
+                  type="password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#e50914]/50 focus:border-[#e50914] transition-colors"
+                />
+              </div>
+
+              {!isLogin && (
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">确认密码</label>
+                  <input
+                    type="password"
+                    required
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#e50914]/50 focus:border-[#e50914] transition-colors"
+                  />
                 </div>
-                <span className="flex-1 text-center font-semibold text-[15px] pr-8">Sign in with Google</span>
-              </button>
+              )}
 
-              {/* Twitch Login */}
-              <button className="w-full flex items-center h-[52px] bg-[#9146FF] hover:bg-[#772ce8] text-white transition-colors relative shadow-sm border border-[#9146FF]">
-                <div className="w-[52px] h-full flex items-center justify-center bg-white border-r border-[#9146FF] text-[#9146FF]">
-                  <Twitch className="w-6 h-6" />
-                </div>
-                <span className="flex-1 text-center font-semibold text-[15px] pr-8">Sign in with Twitch</span>
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="w-full py-3.5 bg-[#e50914] hover:bg-[#d40812] text-white font-bold rounded-lg transition-colors mt-2 disabled:opacity-70 disabled:cursor-not-allowed shadow-md shadow-[#e50914]/20"
+              >
+                {isLoading ? "请稍候..." : (isLogin ? "登录" : "注册")}
               </button>
-            </div>
+            </form>
 
-            <div className="mt-8 text-center">
-              <p className="text-[13px] font-semibold text-gray-900">
-                New to 灵感星图?{" "}
-                <a href="#" className="text-[#3a86ff] hover:underline">
-                  Sign Up
-                </a>
+            <div className="mt-6 text-center">
+              <p className="text-[13px] font-semibold text-gray-500">
+                {isLogin ? "还没有账号？" : "已经有账号了？"}{" "}
+                <button 
+                  onClick={() => {
+                    setIsLogin(!isLogin);
+                    setErrorMsg("");
+                  }}
+                  className="text-[#e50914] hover:underline"
+                >
+                  {isLogin ? "去注册" : "去登录"}
+                </button>
               </p>
-            </div>
-
-            {/* Social Icons row */}
-            <div className="mt-10 flex items-center justify-center gap-5 text-gray-400">
-              <MessageSquare className="w-[18px] h-[18px] hover:text-gray-600 cursor-pointer transition-colors" />
-              <Instagram className="w-[18px] h-[18px] hover:text-gray-600 cursor-pointer transition-colors" />
-              <Facebook className="w-[18px] h-[18px] hover:text-gray-600 cursor-pointer transition-colors" />
-              <Twitter className="w-[18px] h-[18px] hover:text-gray-600 cursor-pointer transition-colors" />
-              <Youtube className="w-[18px] h-[18px] hover:text-gray-600 cursor-pointer transition-colors" />
-              <Twitch className="w-[18px] h-[18px] hover:text-gray-600 cursor-pointer transition-colors" />
-            </div>
-
-            <div className="mt-12 text-center text-[11px] font-semibold text-gray-900">
-              Please <a href="#" className="text-[#3a86ff] hover:underline">contact our support team</a> if you're experiencing account issues.
             </div>
           </div>
         </div>

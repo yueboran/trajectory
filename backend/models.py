@@ -10,10 +10,21 @@ def generate_uuid():
 def get_time_ago():
     return "刚刚"
 
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    email = Column(String, unique=True, index=True)
+    username = Column(String)
+    hashed_password = Column(String)
+    avatarUrl = Column(String, nullable=True)
+    created_at = Column(String, default=get_time_ago)
+
 class Project(Base):
     __tablename__ = "projects"
 
     id = Column(String, primary_key=True, default=generate_uuid)
+    user_id = Column(String, ForeignKey("users.id"))
     name = Column(String, index=True)
     coverImage = Column(String, nullable=True)
     icon = Column(String)
@@ -60,3 +71,11 @@ class Comment(Base):
     bookmarked = Column(Boolean, default=False)
 
     project = relationship("Project", back_populates="comments")
+
+class Feedback(Base):
+    __tablename__ = "feedbacks"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    user_name = Column(String)
+    content = Column(String)
+    created_at = Column(String, default=get_time_ago)

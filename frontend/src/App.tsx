@@ -180,6 +180,45 @@ export default function App() {
   const [submitCustomInputs, setSubmitCustomInputs] = useState<{ name: string; type: 'singleLine' | 'multiLine' }[]>([]);
   const [draftModalOpen, setDraftModalOpen] = useState(false);
   const [pendingTab, setPendingTab] = useState<string | null>(null);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+
+  const checkAuth = async () => {
+    const token = localStorage.getItem("stars:token");
+    if (token) {
+      try {
+        const response = await fetch("/api/auth/me", {
+          headers: { "Authorization": `Bearer ${token}` }
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setCurrentUser(data.data || data);
+        } else {
+          localStorage.removeItem("stars:token");
+          setCurrentUser(null);
+        }
+      } catch (err) {
+        console.error("Failed to check auth", err);
+      }
+    } else {
+      setCurrentUser(null);
+    }
+  };
+
+  useEffect(() => {
+    checkAuth();
+  }, [activeTab]);
+
+  const requireAuth = (action: () => void) => {
+    if (currentUser) {
+      action();
+    } else {
+      setShowNotification("此操作需要登录，正在为您跳转...");
+      setTimeout(() => {
+        setShowNotification("");
+        setActiveTab("auth");
+      }, 1500);
+    }
+  };
 
   const [drafts, setDrafts] = useState<DraftRecord[]>(() => {
     const saved = localStorage.getItem("stars:drafts");
@@ -190,16 +229,18 @@ export default function App() {
   }, [drafts]);
 
   const handleSaveDraft = () => {
-    if ((window as any).saveCurrentDraft) {
-      const draft = (window as any).saveCurrentDraft();
-      if (draft) {
-        setDrafts(prev => {
-          const newDrafts = prev.filter(d => d.id !== draft.id);
-          return [draft, ...newDrafts];
-        });
-        triggerNotification("已成功保存到待发布记录！");
+    requireAuth(() => {
+      if ((window as any).saveCurrentDraft) {
+        const draft = (window as any).saveCurrentDraft();
+        if (draft) {
+          setDrafts(prev => {
+            const newDrafts = prev.filter(d => d.id !== draft.id);
+            return [draft, ...newDrafts];
+          });
+          triggerNotification("已成功保存到待发布记录！");
+        }
       }
-    }
+    });
   };
 
   const proceedToTab = (tabId: string) => {
@@ -251,22 +292,24 @@ export default function App() {
   useEffect(() => {
     async function loadProjects() {
       try {
-        const response = await fetch("/api/projects");
+        const response = await fetch("/api/projects", {
+          headers: { "Authorization": `Bearer ${localStorage.getItem("stars:token")}` }
+        });
         if (response.ok) {
           const data = await response.json();
           // API 返回的是 ApiResponse，提取真正的项目列表数组
           const projects = data.data?.list || data.list || data;
           setProjectsList(projects);
         } else {
-          setProjectsList(MOCK_PROJECTS);
+          setProjectsList([]);
         }
       } catch (err) {
-        console.warn("Failed to load backend API, falling back to mock data.", err);
-        setProjectsList(MOCK_PROJECTS);
+        console.warn("Failed to load backend API, falling back to empty list.", err);
+        setProjectsList([]);
       }
     }
     loadProjects();
-  }, []);
+  }, [currentUser]);
 
   // Sync likes to localStorage
   useEffect(() => {
@@ -297,54 +340,60 @@ export default function App() {
   // Like Toggle interaction helper
   const handleLikeToggle = (id: string, e: MouseEvent) => {
     e.stopPropagation();
-    setLikedProjectIds((prev) => {
-      const isCurrentlyLiked = prev.includes(id);
-      const updated = isCurrentlyLiked ? prev.filter((item) => item !== id) : [...prev, id];
+    requireAuth(() => {
+      setLikedProjectIds((prev) => {
+        const isCurrentlyLiked = prev.includes(id);
+        const updated = isCurrentlyLiked ? prev.filter((item) => item !== id) : [...prev, id];
 
-      // Mutate likes count locally inside projectsList to mirror server instantly
-      setProjectsList((list) =>
-        list.map((proj) => {
-          if (proj.id === id) {
-            return {
-              ...proj,
-              likes: isCurrentlyLiked ? proj.likes - 1 : proj.likes + 1,
-            };
-          }
-          return proj;
-        })
-      );
+        // Mutate likes count locally inside projectsList to mirror server instantly
+        setProjectsList((list) =>
+          list.map((proj) => {
+            if (proj.id === id) {
+              return {
+                ...proj,
+                likes: isCurrentlyLiked ? proj.likes - 1 : proj.likes + 1,
+              };
+            }
+            return proj;
+          })
+        );
 
-      triggerNotification(isCurrentlyLiked ? "已从投资组合中撤出支持" : "已纳入投资组合 · 影响力指数 +1 🚀");
-      return updated;
+        triggerNotification(isCurrentlyLiked ? "已从投资组合中撤出支持" : "已纳入投资组合 · 影响力指数 +1 🚀");
+        return updated;
+      });
     });
   };
 
   // Bookmark Toggle interaction helper
   const handleBookmarkToggle = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    
-    // 乐观更新
-    let nextSaved = false;
-    setProjectsList((list) =>
-      list.map((proj) => {
-        if (proj.id === id) {
-          nextSaved = !proj.bookmarked;
-          return {
-            ...proj,
-            bookmarked: nextSaved,
-          };
-        }
-        return proj;
-      })
-    );
-    triggerNotification(nextSaved ? "已收藏到档案收藏" : "已取消收藏");
+    requireAuth(async () => {
+      // 乐观更新
+      let nextSaved = false;
+      setProjectsList((list) =>
+        list.map((proj) => {
+          if (proj.id === id) {
+            nextSaved = !proj.bookmarked;
+            return {
+              ...proj,
+              bookmarked: nextSaved,
+            };
+          }
+          return proj;
+        })
+      );
+      triggerNotification(nextSaved ? "已收藏到档案收藏" : "已取消收藏");
 
-    // 异步同步到后端
-    try {
-      await fetch(`/api/projects/${id}/bookmark`, { method: "POST" });
-    } catch (err) {
-      console.error("Failed to sync bookmark toggle", err);
-    }
+      // 异步同步到后端
+      try {
+        await fetch(`/api/projects/${id}/bookmark`, { 
+          method: "POST",
+          headers: { "Authorization": `Bearer ${localStorage.getItem("stars:token")}` }
+        });
+      } catch (err) {
+        console.error("Failed to sync bookmark toggle", err);
+      }
+    });
   };
 
   // Record Bookmark Toggle
@@ -373,7 +422,10 @@ export default function App() {
 
     // 异步同步到后端
     try {
-      await fetch(`/api/projects/${projectId}/comments/${recordId}/bookmark`, { method: "POST" });
+      await fetch(`/api/projects/${projectId}/comments/${recordId}/bookmark`, { 
+        method: "POST",
+        headers: { "Authorization": `Bearer ${localStorage.getItem("stars:token")}` }
+      });
     } catch (err) {
       console.error("Failed to sync record bookmark toggle", err);
     }
@@ -390,27 +442,29 @@ export default function App() {
   // 点亮"痛点共鸣"后自动追踪该项目（订阅推送）
   const handlePainPointToggle = (id: string, e: MouseEvent) => {
     e.stopPropagation();
-    setPainPointIds((prev) => {
-      const hasPain = prev.includes(id);
-      if (hasPain) {
-        // 取消共鸣 → 同时取消追踪
-        setTrackedProjectIds((t) => t.filter((tid) => tid !== id));
-        triggerNotification("已取消痛点共鸣，停止追踪该项目");
-        return prev.filter((pid) => pid !== id);
-      } else {
-        // 点亮共鸣 → 自动开始追踪
-        setTrackedProjectIds((t) => t.includes(id) ? t : [...t, id]);
-        // 更新项目的痛点计数
-        setProjectsList((list) =>
-          list.map((proj) =>
-            proj.id === id
-              ? { ...proj, painPointCount: (proj.painPointCount ?? 0) + 1 }
-              : proj
-          )
-        );
-        triggerNotification("⚡ 痛点共鸣已点亮！已自动追踪该项目的所有动态");
-        return [...prev, id];
-      }
+    requireAuth(() => {
+      setPainPointIds((prev) => {
+        const hasPain = prev.includes(id);
+        if (hasPain) {
+          // 取消共鸣 → 同时取消追踪
+          setTrackedProjectIds((t) => t.filter((tid) => tid !== id));
+          triggerNotification("已取消痛点共鸣，停止追踪该项目");
+          return prev.filter((pid) => pid !== id);
+        } else {
+          // 点亮共鸣 → 自动开始追踪
+          setTrackedProjectIds((t) => t.includes(id) ? t : [...t, id]);
+          // 更新项目的痛点计数
+          setProjectsList((list) =>
+            list.map((proj) =>
+              proj.id === id
+                ? { ...proj, painPointCount: (proj.painPointCount ?? 0) + 1 }
+                : proj
+            )
+          );
+          triggerNotification("⚡ 痛点共鸣已点亮！已自动追踪该项目的所有动态");
+          return [...prev, id];
+        }
+      });
     });
   };
 
@@ -424,13 +478,11 @@ export default function App() {
     }
   };
 
-  const handleSubmissionSuccess = (data: any, isRecord: boolean) => {
-    if (isRecord) {
+  const handleSubmissionSuccess = (data: any, isRecord: boolean, targetProjectId?: string | null, isEdit?: boolean) => {
+    if (isRecord && targetProjectId) {
       setProjectsList((prev) =>
         prev.map((proj) => {
-          if (proj.id === submitTargetProjectId) {
-            // 判断是新增还是编辑
-            const isEdit = !!submitInitialRecord;
+          if (proj.id === targetProjectId) {
             if (isEdit) {
               return {
                 ...proj,
@@ -447,8 +499,8 @@ export default function App() {
           return proj;
         })
       );
-      setActiveProjectId(submitTargetProjectId);
-      triggerNotification(submitInitialRecord ? "记录已成功更新！✨" : "已成功添加新记录！✨");
+      setActiveProjectId(targetProjectId);
+      triggerNotification(isEdit ? "记录已成功更新！✨" : "已成功添加新记录！✨");
     } else {
       setProjectsList((prev) => [data, ...prev]);
       setActiveProjectId(data.id);
@@ -458,85 +510,94 @@ export default function App() {
 
   // CRUD for Projects (Archive)
   const handleAddProject = async (newProject: Project) => {
-    try {
-      const response = await fetch("/api/projects", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newProject)
-      });
-      if (response.ok) {
-        const res = await response.json();
-        const createdProject = res.data || res;
-        setProjectsList((prev) => [createdProject, ...prev]);
-        triggerNotification("已成功创建新档案库！");
+    requireAuth(async () => {
+      try {
+        const response = await fetch("/api/projects", {
+          method: "POST",
+          headers: { 
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${localStorage.getItem("stars:token")}`
+          },
+          body: JSON.stringify(newProject)
+        });
+        if (response.ok) {
+          const res = await response.json();
+          const createdProject = res.data || res;
+          setProjectsList((prev) => [createdProject, ...prev]);
+          triggerNotification("已成功创建新档案库！");
+        }
+      } catch (e) {
+        console.error("Failed to add project to backend:", e);
       }
-    } catch (e) {
-      console.error("Failed to add project to backend:", e);
-      // Fallback for offline mode
-      setProjectsList((prev) => [newProject, ...prev]);
-      triggerNotification("本地创建成功 (离线模式)");
-    }
+    });
   };
 
   const handleUpdateProject = async (id: string, updatedFields: Partial<Project>) => {
-    try {
-      const response = await fetch(`/api/projects/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(updatedFields)
-      });
-      if (response.ok) {
-        setProjectsList((prev) =>
-          prev.map((proj) => (proj.id === id ? { ...proj, ...updatedFields } : proj))
-        );
-        triggerNotification("档案库已更新！");
+    requireAuth(async () => {
+      try {
+        const response = await fetch(`/api/projects/${id}`, {
+          method: "PUT",
+          headers: { 
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${localStorage.getItem("stars:token")}`
+          },
+          body: JSON.stringify(updatedFields)
+        });
+        if (response.ok) {
+          setProjectsList((prev) =>
+            prev.map((proj) => (proj.id === id ? { ...proj, ...updatedFields } : proj))
+          );
+          triggerNotification("档案库已更新！");
+        }
+      } catch (e) {
+        console.error("Failed to update project in backend:", e);
       }
-    } catch (e) {
-      console.error("Failed to update project in backend:", e);
-      // Fallback
-      setProjectsList((prev) =>
-        prev.map((proj) => (proj.id === id ? { ...proj, ...updatedFields } : proj))
-      );
-      triggerNotification("本地更新成功 (离线模式)");
-    }
+    });
   };
 
   const handleDeleteProject = async (id: string) => {
-    try {
-      const response = await fetch(`/api/projects/${id}`, { method: "DELETE" });
-      if (response.ok) {
-        setProjectsList((prev) => prev.filter((proj) => proj.id !== id));
-        triggerNotification("档案库已删除");
+    requireAuth(async () => {
+      try {
+        const response = await fetch(`/api/projects/${id}`, { 
+          method: "DELETE",
+          headers: { "Authorization": `Bearer ${localStorage.getItem("stars:token")}` }
+        });
+        if (response.ok) {
+          setProjectsList((prev) => prev.filter((proj) => proj.id !== id));
+          triggerNotification("档案库已删除");
+        }
+      } catch (e) {
+        console.error("Failed to delete project from backend:", e);
       }
-    } catch (e) {
-      console.error("Failed to delete project from backend:", e);
-      // Fallback
-      setProjectsList((prev) => prev.filter((proj) => proj.id !== id));
-      triggerNotification("本地删除成功 (离线模式)");
-    }
+    });
   };
 
   const handleDeleteRecord = async (projectId: string, recordId: string) => {
-    try {
-      const response = await fetch(`/api/projects/${projectId}/comments/${recordId}`, { method: "DELETE" });
-      if (response.ok) {
-        setProjectsList((prev) =>
-          prev.map((proj) => {
-            if (proj.id === projectId && proj.comments) {
-              return {
-                ...proj,
-                comments: proj.comments.filter(c => c.id !== recordId),
-                commentsCount: Math.max(0, proj.commentsCount - 1)
-              };
-            }
-            return proj;
-          })
-        );
-        triggerNotification("记录已删除");
+    requireAuth(async () => {
+      try {
+        const response = await fetch(`/api/projects/${projectId}/comments/${recordId}`, { 
+          method: "DELETE",
+          headers: { "Authorization": `Bearer ${localStorage.getItem("stars:token")}` }
+        });
+        if (response.ok) {
+          setProjectsList((prev) =>
+            prev.map((proj) => {
+              if (proj.id === projectId && proj.comments) {
+                return {
+                  ...proj,
+                  comments: proj.comments.filter(c => c.id !== recordId),
+                  commentsCount: Math.max(0, proj.commentsCount - 1)
+                };
+              }
+              return proj;
+            })
+          );
+          triggerNotification("记录已删除");
+        }
+      } catch (err) {
+        console.error("Failed to delete record", err);
       }
-    } catch (err) {
-      console.error("Failed to delete record", err);
-    }
+    });
   };
 
   // Filters calculation
@@ -568,6 +629,22 @@ export default function App() {
         </div>
       )}
 
+      {/* Draft Save Confirmation Modal for Tab Switching */}
+      <ConfirmModal
+        isOpen={draftModalOpen}
+        title="保存草稿"
+        message="您有正在编辑的内容，是否保存到待发布记录后再离开？"
+        onConfirm={() => {
+          handleSaveDraft();
+          setDraftModalOpen(false);
+          if (pendingTab) proceedToTab(pendingTab);
+        }}
+        onCancel={() => {
+          setDraftModalOpen(false);
+          if (pendingTab) proceedToTab(pendingTab);
+        }}
+      />
+
       {/* TopAppBar - Persistent header matches mockup templates */}
       {!showMethodologyPage && (
         <header
@@ -598,13 +675,7 @@ export default function App() {
 
           {/* Right: Actions */}
           <div className="flex items-center justify-end w-1/3">
-            <button 
-              onClick={() => setActiveTab("auth")}
-              className="flex items-center gap-1.5 text-[13px] font-medium text-[#808080] hover:text-[#E0E0E0] transition-colors"
-            >
-              <User className="w-4 h-4" />
-              <span className="hidden sm:inline">登录</span>
-            </button>
+            {/* The login button was moved to ProfileView */}
           </div>
         </header>
       )}
@@ -648,6 +719,7 @@ export default function App() {
             <div className="flex flex-col w-full bg-[#12161A] min-h-screen">
               {/* Core Feature: Mind Map Tree with Integrated Hero Section */}
               <MindMapSection 
+                isLoggedIn={!!currentUser}
                 onBrowseProjects={() => setActiveTab("explore")}
                 onSubmitIdea={() => setActiveTab("submit")}
                 onCategorySelect={(filter) => {
@@ -733,6 +805,9 @@ export default function App() {
           {activeTab === "submit" && (
             <SubmitForm 
               onSuccess={(data, isRecord) => {
+                const currentProjectId = submitTargetProjectId;
+                const isEdit = !!submitInitialRecord;
+                
                 setSubmitInitialTag(null);
                 setSubmitTargetProjectId(null);
                 setSubmitRatingFields([]);
@@ -744,7 +819,7 @@ export default function App() {
                   setDrafts(d => d.filter(x => x.id !== submitInitialDraft.id));
                 }
                 
-                handleSubmissionSuccess(data, isRecord);
+                handleSubmissionSuccess(data, isRecord, currentProjectId, isEdit);
               }}
               onCancel={() => {
                 const prevProjectId = submitTargetProjectId;
@@ -773,6 +848,7 @@ export default function App() {
               initialTag={submitInitialTag}
               isLocked={!!submitInitialTag}
               targetProjectId={submitTargetProjectId}
+              targetProject={submitTargetProjectId ? projectsList.find(p => p.id === submitTargetProjectId) : null}
               ratingFields={submitRatingFields}
               customInputs={submitCustomInputs}
               initialRecord={submitInitialRecord}
@@ -790,6 +866,8 @@ export default function App() {
             <LeaderboardView
               projects={projectsList}
               initialFilter={archiveInitialFilter}
+              currentUser={currentUser}
+              onNavigateToAuth={() => setActiveTab("auth")}
               onSelectProject={(id) => setActiveProjectId(id)}
               onAddProject={handleAddProject}
               onUpdateProject={handleUpdateProject}
@@ -815,7 +893,34 @@ export default function App() {
           {/* Tab 6: Profile dashboard View */}
           {activeTab === "profile" && (
             <ProfileView
-              userEmail="yueboran666@gmail.com"
+              currentUser={currentUser}
+              onNavigateToAuth={() => setActiveTab("auth")}
+              onLogout={() => {
+                localStorage.removeItem("stars:token");
+                setCurrentUser(null);
+                triggerNotification("已安全注销");
+              }}
+              onAvatarUpload={async (file) => {
+                const formData = new FormData();
+                formData.append("file", file);
+                try {
+                  const token = localStorage.getItem("stars:token");
+                  const res = await fetch("/api/auth/me/avatar", {
+                    method: "POST",
+                    headers: { "Authorization": `Bearer ${token}` },
+                    body: formData
+                  });
+                  if (res.ok) {
+                    const data = await res.json();
+                    setCurrentUser((prev: any) => ({ ...prev, avatarUrl: data.data.avatarUrl }));
+                    triggerNotification("头像更新成功");
+                  } else {
+                    triggerNotification("头像更新失败");
+                  }
+                } catch (err) {
+                  console.error(err);
+                }
+              }}
               bookmarkedProjects={bbookmarkeds}
               likedProjects={likedProjectIds}
               submittedCount={myCreatedCount}

@@ -12,6 +12,7 @@ interface SubmitFormProps {
   initialTag?: string | null;
   isLocked?: boolean;
   targetProjectId?: string | null;
+  targetProject?: Project | null;
   ratingFields?: string[];
   customInputs?: { name: string; type: 'singleLine' | 'multiLine' }[];
   initialRecord?: Comment | null;
@@ -20,7 +21,7 @@ interface SubmitFormProps {
   onDiscardDraft?: (draftId: string) => void;
 }
 
-export default function SubmitForm({ onSuccess, onCancel, initialTag, isLocked, targetProjectId, ratingFields, customInputs, initialRecord, initialDraft, onSaveDraft, onDiscardDraft }: SubmitFormProps) {
+export default function SubmitForm({ onSuccess, onCancel, initialTag, isLocked, targetProjectId, targetProject, ratingFields, customInputs, initialRecord, initialDraft, onSaveDraft, onDiscardDraft }: SubmitFormProps) {
   const [errorMessage, setErrorMessage] = useState("");
   const [showCancelModal, setShowCancelModal] = useState(false);
   const selectableTags = getSelectableTags();
@@ -39,14 +40,15 @@ export default function SubmitForm({ onSuccess, onCancel, initialTag, isLocked, 
   // 全局暴露脏状态供跨 Tab 切换拦截，并暴露草稿保存方法
   React.useEffect(() => {
     const interval = setInterval(() => {
-      const text = editorRef.current?.getText() || "";
-      (window as any).isSubmitFormDirty = text.trim().length > 0;
+      const empty = editorRef.current?.isEmpty();
+      (window as any).isSubmitFormDirty = empty === false;
     }, 1000);
 
     (window as any).saveCurrentDraft = () => {
+      const empty = editorRef.current?.isEmpty();
+      if (empty !== false) return null;
       const html = editorRef.current?.getHTML() || "";
       const text = editorRef.current?.getText() || "";
-      if (text.trim().length === 0) return null;
       const title = text.trim().slice(0, 20) || "草稿记录";
       const draft: DraftRecord = {
         id: initialDraft?.id || "draft-" + Date.now(),
@@ -69,8 +71,8 @@ export default function SubmitForm({ onSuccess, onCancel, initialTag, isLocked, 
   }, [initialDraft, targetProjectId, selectedTag, ratings, customData]);
 
   const handleCancelClick = () => {
-    const text = editorRef.current?.getText() || "";
-    if (text.trim().length > 0) {
+    const empty = editorRef.current?.isEmpty();
+    if (empty === false) {
       setShowCancelModal(true);
     } else {
       if (onCancel) onCancel();
@@ -115,7 +117,8 @@ export default function SubmitForm({ onSuccess, onCancel, initialTag, isLocked, 
         const response = await fetch(url, {
           method: isEdit ? "PUT" : "POST",
           headers: {
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${localStorage.getItem("stars:token")}`
           },
           body: JSON.stringify(payload)
         });
@@ -181,21 +184,54 @@ export default function SubmitForm({ onSuccess, onCancel, initialTag, isLocked, 
         }}
       />
       <div className="space-y-4">
-        {/* 选项区：档案库选择（三级联动） */}
-        <div className="relative z-20 p-5 bg-[#1a1b1e]/50 backdrop-blur-sm border border-white/5 rounded-2xl shadow-inner transition-all hover:border-white/10">
-          <label className="block text-[13px] font-bold text-[#cbc3d7] mb-3 tracking-wide pl-1">档案库归属</label>
-          {isLocked ? (
-            <div className="w-full bg-[#1a1b1e]/80 backdrop-blur-md border border-white/10 rounded-xl px-4 py-3.5 text-[14px] text-[#A0A0A0] transition-colors flex justify-start items-center opacity-70 cursor-not-allowed select-none">
-              <span className="truncate">{selectedTag}</span>
+        {/* 选项区：档案库选择（三级联动）/ 或者展示来源档案库卡片 */}
+        {isLocked && targetProject ? (
+          <div className="relative z-20 p-6 bg-[#1a1b1e]/50 backdrop-blur-sm border border-white/5 rounded-3xl shadow-inner transition-all overflow-hidden group">
+            {/* 动态渐变背景 */}
+            <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-transparent opacity-50 pointer-events-none" />
+            
+            <div className="relative z-10 flex flex-col">
+              {/* 标签路径 */}
+              <div className="flex items-center gap-1.5 mb-3 flex-wrap">
+                {targetProject.tags?.[0]?.split(' / ').map((part, i, arr) => (
+                  <React.Fragment key={i}>
+                    <span className="text-[12px] font-semibold text-amber-400 tracking-wide">
+                      {part}
+                    </span>
+                    {i < arr.length - 1 && (
+                      <span className="text-[#606060] text-[10px] mx-0.5">❯</span>
+                    )}
+                  </React.Fragment>
+                ))}
+              </div>
+              
+              {/* 标题 */}
+              <h2 className="text-[22px] md:text-[26px] font-black text-[#F0F0F0] leading-tight mb-2.5 tracking-tight drop-shadow-sm">
+                {targetProject.name}
+              </h2>
+              
+              {/* 简介 */}
+              <p className="text-[13px] text-[#808080] leading-[1.6] max-w-[90%]">
+                {targetProject.intro}
+              </p>
             </div>
-          ) : (
-            <CategoryCascader 
-              value={selectedTag} 
-              onChange={setSelectedTag} 
-              disabledLevels={[false, false, false]}
-            />
-          )}
-        </div>
+          </div>
+        ) : (
+          <div className="relative z-20 p-5 bg-[#1a1b1e]/50 backdrop-blur-sm border border-white/5 rounded-2xl shadow-inner transition-all hover:border-white/10">
+            <label className="block text-[13px] font-bold text-[#cbc3d7] mb-3 tracking-wide pl-1">档案库归属</label>
+            {isLocked ? (
+              <div className="w-full bg-[#1a1b1e]/80 backdrop-blur-md border border-white/10 rounded-xl px-4 py-3.5 text-[14px] text-[#A0A0A0] transition-colors flex justify-start items-center opacity-70 cursor-not-allowed select-none">
+                <span className="truncate">{selectedTag}</span>
+              </div>
+            ) : (
+              <CategoryCascader 
+                value={selectedTag} 
+                onChange={setSelectedTag} 
+                disabledLevels={[false, false, false]}
+              />
+            )}
+          </div>
+        )}
 
         {/* 动态模板输入区 */}
         {ratingFields && ratingFields.length > 0 && (

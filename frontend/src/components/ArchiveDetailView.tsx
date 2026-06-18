@@ -286,7 +286,7 @@ export default function ArchiveDetailView({ project, initialRecordId, onBack, on
         <div
           className="absolute inset-0 bg-cover bg-center scale-105"
           style={{
-            backgroundImage: `url(${project.coverImage || '/images/mocks/hot_carousel_1.png'})`,
+            backgroundImage: `url(${project.coverImage || '/api/static/images/mocks/hot_carousel_1.png'})`,
             opacity: 0.35,
             filter: "brightness(0.8)",
           }}
