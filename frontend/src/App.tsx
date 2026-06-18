@@ -17,7 +17,7 @@ import LeaderboardView from "./components/LeaderboardView";
 import StarMapGraph from "./components/StarMapGraph";
 import AuthPage from "./components/AuthPage";
 import ConfirmModal from "./components/ConfirmModal";
-import { Project } from "./types";
+import { Project, Comment, DraftRecord } from "./types";
 
 const MOCK_PROJECTS: Project[] = [
   {
@@ -174,13 +174,42 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<string>("home");
   const [submitInitialTag, setSubmitInitialTag] = useState<string | null>(null);
   const [submitTargetProjectId, setSubmitTargetProjectId] = useState<string | null>(null);
+  const [submitInitialRecord, setSubmitInitialRecord] = useState<Comment | null>(null);
+  const [submitInitialDraft, setSubmitInitialDraft] = useState<DraftRecord | null>(null);
   const [submitRatingFields, setSubmitRatingFields] = useState<string[]>([]);
+  const [submitCustomInputs, setSubmitCustomInputs] = useState<{ name: string; type: 'singleLine' | 'multiLine' }[]>([]);
   const [draftModalOpen, setDraftModalOpen] = useState(false);
   const [pendingTab, setPendingTab] = useState<string | null>(null);
 
+  const [drafts, setDrafts] = useState<DraftRecord[]>(() => {
+    const saved = localStorage.getItem("stars:drafts");
+    return saved ? JSON.parse(saved) : [];
+  });
+  useEffect(() => {
+    localStorage.setItem("stars:drafts", JSON.stringify(drafts));
+  }, [drafts]);
+
+  const handleSaveDraft = () => {
+    if ((window as any).saveCurrentDraft) {
+      const draft = (window as any).saveCurrentDraft();
+      if (draft) {
+        setDrafts(prev => {
+          const newDrafts = prev.filter(d => d.id !== draft.id);
+          return [draft, ...newDrafts];
+        });
+        triggerNotification("已成功保存到待发布记录！");
+      }
+    }
+  };
+
   const proceedToTab = (tabId: string) => {
-    if (tabId === "submit" && submitInitialTag) {
+    if (tabId === "submit") {
       setSubmitInitialTag(null);
+      setSubmitTargetProjectId(null);
+      setSubmitInitialRecord(null);
+      setSubmitInitialDraft(null);
+      setSubmitRatingFields([]);
+      setSubmitCustomInputs([]);
     }
     setActiveTab(tabId);
     (window as any).isSubmitFormDirty = false;
@@ -225,7 +254,9 @@ export default function App() {
         const response = await fetch("/api/projects");
         if (response.ok) {
           const data = await response.json();
-          setProjectsList(data);
+          // API 返回的是 ApiResponse，提取真正的项目列表数组
+          const projects = data.data?.list || data.list || data;
+          setProjectsList(projects);
         } else {
           setProjectsList(MOCK_PROJECTS);
         }
@@ -289,13 +320,15 @@ export default function App() {
   };
 
   // Bookmark Toggle interaction helper
-  const handleBookmarkToggle = (id: string, e: MouseEvent) => {
+  const handleBookmarkToggle = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
+    
+    // 乐观更新
+    let nextSaved = false;
     setProjectsList((list) =>
       list.map((proj) => {
         if (proj.id === id) {
-          const nextSaved = !proj.bookmarked;
-          triggerNotification(nextSaved ? "重仓加入投资组合 · 贡献者权重提升 ✨" : "已从深度持仓中移除");
+          nextSaved = !proj.bookmarked;
           return {
             ...proj,
             bookmarked: nextSaved,
@@ -304,6 +337,46 @@ export default function App() {
         return proj;
       })
     );
+    triggerNotification(nextSaved ? "已收藏到档案收藏" : "已取消收藏");
+
+    // 异步同步到后端
+    try {
+      await fetch(`/api/projects/${id}/bookmark`, { method: "POST" });
+    } catch (err) {
+      console.error("Failed to sync bookmark toggle", err);
+    }
+  };
+
+  // Record Bookmark Toggle
+  const handleRecordBookmarkToggle = async (projectId: string, recordId: string) => {
+    // 乐观更新
+    let nextSaved = false;
+    setProjectsList((list) =>
+      list.map((proj) => {
+        if (proj.id === projectId && proj.comments) {
+          return {
+            ...proj,
+            comments: proj.comments.map(c => {
+              if (c.id === recordId) {
+                nextSaved = !c.bookmarked;
+                return { ...c, bookmarked: nextSaved };
+              }
+              return c;
+            })
+          };
+        }
+        return proj;
+      })
+    );
+
+    triggerNotification(nextSaved ? "已收藏该记录 🌟" : "已取消记录收藏");
+
+    // 异步同步到后端
+    try {
+      await fetch(`/api/projects/${projectId}/comments/${recordId}/bookmark`, { method: "POST" });
+    } catch (err) {
+      console.error("Failed to sync record bookmark toggle", err);
+    }
   };
 
   const triggerNotification = (text: string) => {
@@ -351,23 +424,31 @@ export default function App() {
     }
   };
 
-  // When AI Evaluate returns successfully, append project and inspect details
   const handleSubmissionSuccess = (data: any, isRecord: boolean) => {
     if (isRecord) {
       setProjectsList((prev) =>
         prev.map((proj) => {
           if (proj.id === submitTargetProjectId) {
-            return {
-              ...proj,
-              comments: [data, ...(proj.comments || [])],
-              commentsCount: proj.commentsCount + 1
-            };
+            // 判断是新增还是编辑
+            const isEdit = !!submitInitialRecord;
+            if (isEdit) {
+              return {
+                ...proj,
+                comments: (proj.comments || []).map(c => c.id === data.id ? data : c)
+              };
+            } else {
+              return {
+                ...proj,
+                comments: [data, ...(proj.comments || [])],
+                commentsCount: proj.commentsCount + 1
+              };
+            }
           }
           return proj;
         })
       );
       setActiveProjectId(submitTargetProjectId);
-      triggerNotification("已成功添加新记录！✨");
+      triggerNotification(submitInitialRecord ? "记录已成功更新！✨" : "已成功添加新记录！✨");
     } else {
       setProjectsList((prev) => [data, ...prev]);
       setActiveProjectId(data.id);
@@ -376,21 +457,86 @@ export default function App() {
   };
 
   // CRUD for Projects (Archive)
-  const handleAddProject = (newProject: Project) => {
-    setProjectsList((prev) => [newProject, ...prev]);
-    triggerNotification("已成功创建新档案库！");
+  const handleAddProject = async (newProject: Project) => {
+    try {
+      const response = await fetch("/api/projects", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newProject)
+      });
+      if (response.ok) {
+        const res = await response.json();
+        const createdProject = res.data || res;
+        setProjectsList((prev) => [createdProject, ...prev]);
+        triggerNotification("已成功创建新档案库！");
+      }
+    } catch (e) {
+      console.error("Failed to add project to backend:", e);
+      // Fallback for offline mode
+      setProjectsList((prev) => [newProject, ...prev]);
+      triggerNotification("本地创建成功 (离线模式)");
+    }
   };
 
-  const handleUpdateProject = (id: string, updatedFields: Partial<Project>) => {
-    setProjectsList((prev) =>
-      prev.map((proj) => (proj.id === id ? { ...proj, ...updatedFields } : proj))
-    );
-    triggerNotification("档案库已更新！");
+  const handleUpdateProject = async (id: string, updatedFields: Partial<Project>) => {
+    try {
+      const response = await fetch(`/api/projects/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updatedFields)
+      });
+      if (response.ok) {
+        setProjectsList((prev) =>
+          prev.map((proj) => (proj.id === id ? { ...proj, ...updatedFields } : proj))
+        );
+        triggerNotification("档案库已更新！");
+      }
+    } catch (e) {
+      console.error("Failed to update project in backend:", e);
+      // Fallback
+      setProjectsList((prev) =>
+        prev.map((proj) => (proj.id === id ? { ...proj, ...updatedFields } : proj))
+      );
+      triggerNotification("本地更新成功 (离线模式)");
+    }
   };
 
-  const handleDeleteProject = (id: string) => {
-    setProjectsList((prev) => prev.filter((proj) => proj.id !== id));
-    triggerNotification("档案库已删除");
+  const handleDeleteProject = async (id: string) => {
+    try {
+      const response = await fetch(`/api/projects/${id}`, { method: "DELETE" });
+      if (response.ok) {
+        setProjectsList((prev) => prev.filter((proj) => proj.id !== id));
+        triggerNotification("档案库已删除");
+      }
+    } catch (e) {
+      console.error("Failed to delete project from backend:", e);
+      // Fallback
+      setProjectsList((prev) => prev.filter((proj) => proj.id !== id));
+      triggerNotification("本地删除成功 (离线模式)");
+    }
+  };
+
+  const handleDeleteRecord = async (projectId: string, recordId: string) => {
+    try {
+      const response = await fetch(`/api/projects/${projectId}/comments/${recordId}`, { method: "DELETE" });
+      if (response.ok) {
+        setProjectsList((prev) =>
+          prev.map((proj) => {
+            if (proj.id === projectId && proj.comments) {
+              return {
+                ...proj,
+                comments: proj.comments.filter(c => c.id !== recordId),
+                commentsCount: Math.max(0, proj.commentsCount - 1)
+              };
+            }
+            return proj;
+          })
+        );
+        triggerNotification("记录已删除");
+      }
+    } catch (err) {
+      console.error("Failed to delete record", err);
+    }
   };
 
   // Filters calculation
@@ -590,7 +736,14 @@ export default function App() {
                 setSubmitInitialTag(null);
                 setSubmitTargetProjectId(null);
                 setSubmitRatingFields([]);
+                setSubmitCustomInputs([]);
                 setActiveTab("ranking"); // Reset bottom tab to leaderboard/archive so SubmitForm doesn't remain
+                
+                // 如果是通过编辑草稿发布的，我们发布成功后应当删除它
+                if (submitInitialDraft) {
+                  setDrafts(d => d.filter(x => x.id !== submitInitialDraft.id));
+                }
+                
                 handleSubmissionSuccess(data, isRecord);
               }}
               onCancel={() => {
@@ -598,6 +751,7 @@ export default function App() {
                 setSubmitInitialTag(null);
                 setSubmitTargetProjectId(null);
                 setSubmitRatingFields([]);
+                setSubmitCustomInputs([]);
                 
                 if (prevProjectId) {
                   setActiveProjectId(prevProjectId);
@@ -606,10 +760,23 @@ export default function App() {
                   setActiveTab("home");
                 }
               }}
+              onSaveDraft={(draft) => {
+                setDrafts(prev => {
+                  const newDrafts = prev.filter(d => d.id !== draft.id);
+                  return [draft, ...newDrafts];
+                });
+                triggerNotification("已成功保存到待发布记录！");
+              }}
+              onDiscardDraft={(draftId) => {
+                setDrafts(d => d.filter(x => x.id !== draftId));
+              }}
               initialTag={submitInitialTag}
               isLocked={!!submitInitialTag}
               targetProjectId={submitTargetProjectId}
               ratingFields={submitRatingFields}
+              customInputs={submitCustomInputs}
+              initialRecord={submitInitialRecord}
+              initialDraft={submitInitialDraft}
             />
           )}
 
@@ -628,10 +795,13 @@ export default function App() {
               onUpdateProject={handleUpdateProject}
               onDeleteProject={handleDeleteProject}
               onBookmarkToggle={handleBookmarkToggle}
-              onNavigateToSubmit={(projectId, tag, ratingFields) => {
+              onToggleRecordBookmark={handleRecordBookmarkToggle}
+              onNavigateToSubmit={(projectId, tag, ratingFields, customInputs, initialRecord) => {
                 setSubmitTargetProjectId(projectId);
                 setSubmitInitialTag(tag);
                 setSubmitRatingFields(ratingFields || []);
+                setSubmitCustomInputs(customInputs || []);
+                setSubmitInitialRecord(initialRecord || null);
                 setActiveTab("submit");
               }}
             />
@@ -650,15 +820,32 @@ export default function App() {
               likedProjects={likedProjectIds}
               submittedCount={myCreatedCount}
               allProjects={projectsList}
+              draftRecords={drafts}
               onSelectProject={(id) => setActiveProjectId(id)}
               onLikeToggle={handleLikeToggle}
               onBookmarkToggle={handleBookmarkToggle}
-              onNavigateToSubmit={(projectId, tag, ratingFields) => {
+              onToggleRecordBookmark={handleRecordBookmarkToggle}
+              onSyncProjects={(syncedList) => setProjectsList(syncedList)}
+              onEditDraft={(draft) => {
+                setSubmitTargetProjectId(draft.targetProjectId);
+                setSubmitInitialTag(draft.tag);
+                setSubmitRatingFields(Object.keys(draft.ratings));
+                setSubmitCustomInputs(Object.keys(draft.customData).map(k => ({ name: k, type: 'singleLine' })));
+                setSubmitInitialRecord(null);
+                setSubmitInitialDraft(draft);
+                setActiveTab("submit");
+              }}
+              onNavigateToSubmit={(projectId, tag, ratingFields, customInputs, initialRecord) => {
                 setSubmitTargetProjectId(projectId);
                 setSubmitInitialTag(tag);
                 setSubmitRatingFields(ratingFields || []);
+                setSubmitCustomInputs(customInputs || []);
+                setSubmitInitialRecord(initialRecord || null);
+                setSubmitInitialDraft(null);
                 setActiveTab("submit");
               }}
+              onUpdateProject={handleUpdateProject}
+              onDeleteProject={handleDeleteProject}
             />
           )}
         </div>
@@ -676,11 +863,14 @@ export default function App() {
         message="发现未保存的编辑内容，是否将其保存为草稿？"
         onConfirm={() => {
           setDraftModalOpen(false);
-          // simulate draft save
+          handleSaveDraft();
           if (pendingTab) proceedToTab(pendingTab);
         }}
         onCancel={() => {
           setDraftModalOpen(false);
+          if (submitInitialDraft) {
+            setDrafts(d => d.filter(x => x.id !== submitInitialDraft.id));
+          }
           if (pendingTab) proceedToTab(pendingTab);
         }}
       />
@@ -691,10 +881,14 @@ export default function App() {
           <ArchiveDetailView
             project={projectsList.find((p) => p.id === activeProjectId)!}
             onBack={() => setActiveProjectId(null)}
-            onAddRecord={(projectId, tag, ratingFields) => {
+            onToggleRecordBookmark={handleRecordBookmarkToggle}
+            onDeleteRecord={handleDeleteRecord}
+            onAddRecord={(projectId, tag, ratingFields, customInputs, initialRecord) => {
               setSubmitTargetProjectId(projectId);
               setSubmitInitialTag(tag);
               setSubmitRatingFields(ratingFields || []);
+              setSubmitCustomInputs(customInputs || []);
+              setSubmitInitialRecord(initialRecord || null);
               setActiveTab("submit");
               setActiveProjectId(null);
             }}

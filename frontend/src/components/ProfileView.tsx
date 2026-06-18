@@ -6,17 +6,18 @@
  * 将用户的个人主页设计为"基金经理的投资组合"视图
  */
 
-import { useState, MouseEvent, useMemo } from "react";
+import React, { useState, MouseEvent, useMemo } from "react";
 import {
   User, Mail, TrendingUp, TrendingDown, Flame, Zap,
   Briefcase, Heart, Bookmark, Star, ChevronRight,
   BarChart3, Award, Target, Cpu, Globe, DollarSign,
   Sparkles, Crown, Eye, ArrowUpRight, ArrowDownRight,
-  Calendar, Activity, HelpCircle, MessageSquare
+  Calendar, Activity, HelpCircle, MessageSquare, MoreHorizontal, Edit2, Trash2, X
 } from "lucide-react";
-import { Project, PortfolioHolding, PortfolioStats } from "../types";
+import { Project, PortfolioHolding, PortfolioStats, DraftRecord } from "../types";
 import ProjectCard from "./ProjectCard";
 import ArchiveDetailView from "./ArchiveDetailView";
+import CategoryCascader from "./CategoryCascader";
 
 // ========== 组件接口定义 ==========
 interface ProfileViewProps {
@@ -28,6 +29,13 @@ interface ProfileViewProps {
   onSelectProject: (id: string) => void;
   onLikeToggle?: (id: string, e: MouseEvent) => void;
   onBookmarkToggle?: (id: string, e: MouseEvent) => void;
+  onSyncProjects?: (syncedList: Project[]) => void;
+  onToggleRecordBookmark?: (projectId: string, recordId: string) => void;
+  onNavigateToSubmit?: (projectId: string, tag: string, ratingFields?: string[], customInputs?: {name: string, type: 'singleLine'|'multiLine'}[]) => void;
+  draftRecords?: DraftRecord[];
+  onEditDraft?: (draft: DraftRecord) => void;
+  onUpdateProject?: (id: string, updates: Partial<Project>) => void;
+  onDeleteProject?: (id: string) => void;
 }
 
 // ========== 角色标签配置 ==========
@@ -161,107 +169,6 @@ function HoldingRow({
   );
 }
 
-// ========== 档案可视化图表组件 ==========
-function VisualizationChart({ mode }: { mode: "activity" | "quantity" }) {
-  // 模拟操作记录数据（创建、修改、删除）
-  const activity = [
-    { label: "06/08", c: 2, u: 5, d: 0 },
-    { label: "06/09", c: 1, u: 3, d: 1 },
-    { label: "06/10", c: 4, u: 8, d: 0 },
-    { label: "06/11", c: 0, u: 2, d: 0 },
-    { label: "06/12", c: 3, u: 6, d: 2 },
-    { label: "06/13", c: 1, u: 4, d: 0 },
-    { label: "06/14", c: 2, u: 7, d: 1 },
-  ];
-  // 模拟记录数量数据
-  const quantity = [
-    { label: "06/08", val: 120 },
-    { label: "06/09", val: 125 },
-    { label: "06/10", val: 133 },
-    { label: "06/11", val: 135 },
-    { label: "06/12", val: 141 },
-    { label: "06/13", val: 146 },
-    { label: "06/14", val: 154 },
-  ];
-
-  const h = 140;
-  const w = 300; 
-  const step = w / (activity.length - 1);
-
-  if (mode === "activity") {
-    const max = 10;
-    const getPts = (key: 'c'|'u'|'d') => activity.map((d, i) => `${i * step},${h - (d[key] / max) * h}`).join(" ");
-    return (
-      <div className="w-full">
-         <svg viewBox={`-10 -10 ${w+20} ${h+20}`} className="w-full h-[140px] overflow-visible">
-            {/* 网格线 */}
-            <line x1="0" y1={h/2} x2={w} y2={h/2} stroke="rgba(255,255,255,0.05)" strokeWidth="1" strokeDasharray="4 4" />
-            <line x1="0" y1="0" x2={w} y2="0" stroke="rgba(255,255,255,0.05)" strokeWidth="1" strokeDasharray="4 4" />
-            <line x1="0" y1={h} x2={w} y2={h} stroke="rgba(255,255,255,0.05)" strokeWidth="1" strokeDasharray="4 4" />
-
-            <polyline points={getPts('u')} fill="none" stroke="#fbabff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            <polyline points={getPts('c')} fill="none" stroke="#4ade80" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            <polyline points={getPts('d')} fill="none" stroke="#f87171" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            
-            {activity.map((d, i) => (
-              <g key={i}>
-                <circle cx={i*step} cy={h - (d.u/max)*h} r="3" fill="#18191c" stroke="#fbabff" strokeWidth="2" />
-                <circle cx={i*step} cy={h - (d.c/max)*h} r="3" fill="#18191c" stroke="#4ade80" strokeWidth="2" />
-                <circle cx={i*step} cy={h - (d.d/max)*h} r="3" fill="#18191c" stroke="#f87171" strokeWidth="2" />
-              </g>
-            ))}
-         </svg>
-         <div className="flex justify-between mt-4">
-           {activity.map(d => <span key={d.label} className="text-[10px] text-gray-500 font-mono">{d.label}</span>)}
-         </div>
-         <div className="flex justify-center gap-5 mt-4 pt-4 border-t border-white/5">
-            <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-[#4ade80]"></div><span className="text-xs text-gray-400 font-bold tracking-wider">创建</span></div>
-            <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-[#fbabff]"></div><span className="text-xs text-gray-400 font-bold tracking-wider">修改</span></div>
-            <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-[#f87171]"></div><span className="text-xs text-gray-400 font-bold tracking-wider">删除</span></div>
-         </div>
-      </div>
-    );
-  }
-
-  const minV = 100;
-  const maxV = 160;
-  const range = maxV - minV;
-  const pts = quantity.map((d, i) => `${i * step},${h - ((d.val - minV)/range) * h}`).join(" ");
-  const areaPts = `0,${h} ${pts} ${w},${h}`;
-  
-  return (
-    <div className="w-full">
-      <svg viewBox={`-10 -10 ${w+20} ${h+20}`} className="w-full h-[140px] overflow-visible">
-        <defs>
-          <linearGradient id="quantGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#4cd7f6" stopOpacity="0.4" />
-            <stop offset="100%" stopColor="#4cd7f6" stopOpacity="0" />
-          </linearGradient>
-        </defs>
-        <line x1="0" y1={h/2} x2={w} y2={h/2} stroke="rgba(255,255,255,0.05)" strokeWidth="1" strokeDasharray="4 4" />
-        <line x1="0" y1="0" x2={w} y2="0" stroke="rgba(255,255,255,0.05)" strokeWidth="1" strokeDasharray="4 4" />
-        <line x1="0" y1={h} x2={w} y2={h} stroke="rgba(255,255,255,0.05)" strokeWidth="1" strokeDasharray="4 4" />
-
-        <polygon points={areaPts} fill="url(#quantGrad)" />
-        <polyline points={pts} fill="none" stroke="#4cd7f6" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-        
-        {quantity.map((d, i) => (
-          <circle key={i} cx={i*step} cy={h - ((d.val - minV)/range) * h} r="4" fill="#18191c" stroke="#4cd7f6" strokeWidth="2" />
-        ))}
-      </svg>
-      <div className="flex justify-between mt-4">
-        {quantity.map(d => <span key={d.label} className="text-[10px] text-gray-500 font-mono">{d.label}</span>)}
-      </div>
-      <div className="flex justify-center mt-4 pt-4 border-t border-white/5">
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-0.5 bg-[#4cd7f6]"></div>
-          <span className="text-xs text-gray-400 font-bold tracking-wider">总记录数量</span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ========== 主组件 ==========
 export default function ProfileView({
   userEmail = "yueboran666@gmail.com",
@@ -272,12 +179,76 @@ export default function ProfileView({
   onSelectProject,
   onLikeToggle,
   onBookmarkToggle,
+  onSyncProjects,
+  onToggleRecordBookmark,
+  onNavigateToSubmit,
+  draftRecords = [],
+  onEditDraft,
+  onUpdateProject,
+  onDeleteProject,
 }: ProfileViewProps) {
 
   const [activeFilter, setActiveFilter] = useState<"archive_bookmarks" | "record_bookmarks" | "draft_records">("archive_bookmarks");
   const [chartMode, setChartMode] = useState<"activity" | "quantity">("activity");
   const [selectedArchiveId, setSelectedArchiveId] = useState<string | null>(null);
   const [selectedRecordId, setSelectedRecordId] = useState<string | null>(null);
+
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [formData, setFormData] = useState<{name: string, intro: string, tag: string, ratingFields: string[], customInputs: { name: string; type: 'singleLine' | 'multiLine' }[]}>({ name: "", intro: "", tag: "", ratingFields: [], customInputs: [] });
+  const [ratingInput, setRatingInput] = useState("");
+  const [customInputName, setCustomInputName] = useState("");
+  const [customInputType, setCustomInputType] = useState<'singleLine' | 'multiLine'>('singleLine');
+  const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
+  const [filterTag, setFilterTag] = useState<string>("全部档案");
+
+  const handleOpenForm = (project?: Project) => {
+    if (project) {
+      setEditingId(project.id);
+      setFormData({
+        name: project.name,
+        intro: project.intro,
+        tag: project.tags && project.tags.length > 0 ? project.tags[0] : "",
+        ratingFields: project.ratingFields || [],
+        customInputs: project.customInputs || []
+      });
+    } else {
+      setEditingId(null);
+      setFormData({ name: "", intro: "", tag: filterTag && filterTag !== "全部" ? filterTag : "", ratingFields: [], customInputs: [] });
+    }
+    setActiveMenuId(null);
+    setIsFormOpen(true);
+  };
+
+  const handleCloseForm = () => {
+    setIsFormOpen(false);
+    setEditingId(null);
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.name.trim() || !formData.intro.trim()) return;
+
+    if (editingId) {
+      if (onUpdateProject) {
+        onUpdateProject(editingId, {
+          name: formData.name,
+          intro: formData.intro,
+          tags: formData.tag ? [formData.tag] : [],
+          ratingFields: formData.ratingFields,
+          customInputs: formData.customInputs
+        });
+      }
+    }
+    handleCloseForm();
+  };
+
+  const handleDelete = (id: string) => {
+    setActiveMenuId(null);
+    if (window.confirm("确定要删除这个档案库吗？")) {
+      if (onDeleteProject) onDeleteProject(id);
+    }
+  };
 
   // ====== 核心：构建投资组合持仓列表 ======
   const { holdings, stats } = useMemo(() => {
@@ -417,26 +388,10 @@ export default function ProfileView({
   // 档案收藏
   const archiveBookmarks = bookmarkedProjects;
   
-  // 记录收藏 (mock)
-  const recordBookmarks = allProjects.flatMap(p => p.comments?.map(c => ({...c, projectId: p.id})) || []).slice(0, 3);
-  
-  // 待发布记录 (mock)
-  const draftRecords = [
-    {
-      id: "mock-draft-1",
-      content: "关于商业模式图谱的补充：需要考虑边缘计算的成本结构。目前的定价模型可能会导致高并发下的利润率下降...",
-      timeAgo: "刚刚",
-      projectId: allProjects[0]?.id
-    },
-    {
-      id: "mock-draft-2",
-      title: "新的架构思路：微前端集成",
-      content: "考虑将各个业务模块拆分成微前端应用，这样可以独立部署，降低发布风险。建议先在后台管理系统试点。",
-      timeAgo: "2小时前",
-      type: "expansion",
-      projectId: allProjects[0]?.id
-    }
-  ];
+  // 真实记录收藏：筛选出所有 bookmarked 为 true 的记录
+  const recordBookmarks = allProjects.flatMap(p => 
+    p.comments?.filter(c => c.bookmarked).map(c => ({...c, projectId: p.id})) || []
+  );
 
   // 筛选持仓 (保留逻辑)
   const filteredHoldings = holdings.filter((h) => h.role === activeFilter as any);
@@ -468,6 +423,8 @@ export default function ProfileView({
           setSelectedArchiveId(null);
           setSelectedRecordId(null);
         }}
+        onToggleRecordBookmark={onToggleRecordBookmark}
+        onAddRecord={(projectId, tag, ratingFields, customInputs) => onNavigateToSubmit?.(projectId, tag, ratingFields, customInputs)}
       />
     );
   }
@@ -493,7 +450,7 @@ export default function ProfileView({
               <div className="w-16 h-16 md:w-20 md:h-20 shrink-0 rounded-full bg-gradient-to-tr from-[#d0bcff] to-[#4cd7f6] p-[2px] shadow-[0_0_20px_rgba(208,188,255,0.3)]">
                 <div 
                   className="w-full h-full bg-[#0b1326] rounded-full flex items-center justify-center overflow-hidden bg-cover bg-center"
-                  style={{ backgroundImage: 'url(/images/banners/profile_hero.png)' }}
+                  style={{ backgroundImage: 'url(/images/mocks/hot_thumb_1.png)' }}
                 />
               </div>
 
@@ -508,32 +465,42 @@ export default function ProfileView({
 
         {/* Stats Panel (Glassmorphism over dark bg) */}
         <div className="px-4 md:px-6 py-2 -mt-6 relative z-20">
-          <div className="rounded-xl p-5 bg-[#1a1b1f]/90 backdrop-blur-xl border border-white/10 shadow-2xl mb-6">
-            
-            {/* Chart Area */}
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-2">
-                <Activity className="w-4 h-4 text-[#d0bcff]" />
-                <h3 className="text-white font-bold text-sm tracking-wide">档案可视化分析</h3>
-              </div>
-              <div className="flex bg-black/50 rounded-lg p-1 border border-white/5">
-                <button 
-                  onClick={() => setChartMode('activity')} 
-                  className={`px-3 py-1.5 rounded-md text-[11px] font-bold tracking-wider transition-all ${chartMode === 'activity' ? 'bg-[#d0bcff]/20 text-[#d0bcff]' : 'text-gray-400 hover:text-gray-200'}`}
-                >
-                  操作记录
-                </button>
-                <button 
-                  onClick={() => setChartMode('quantity')} 
-                  className={`px-3 py-1.5 rounded-md text-[11px] font-bold tracking-wider transition-all ${chartMode === 'quantity' ? 'bg-[#4cd7f6]/20 text-[#4cd7f6]' : 'text-gray-400 hover:text-gray-200'}`}
-                >
-                  记录数量
-                </button>
-              </div>
+          
+                    <div className="rounded-xl p-5 bg-[#1a1b1f]/90 backdrop-blur-xl border border-white/10 shadow-2xl mb-6">
+            <div className="flex items-center gap-2 mb-4">
+              <Activity className="w-4 h-4 text-[#d0bcff]" />
+              <h3 className="text-white font-bold text-sm tracking-wide">档案统计数据</h3>
             </div>
-
-            <VisualizationChart mode={chartMode} />
-
+            <div className="w-full overflow-x-auto pb-2">
+              <table className="w-full text-left border-collapse min-w-[500px]">
+                <thead>
+                  <tr className="border-b border-white/10 text-[#cbc3d7] text-xs uppercase tracking-wider font-semibold bg-[#12161a]/50">
+                    <th className="p-3 rounded-tl-lg whitespace-nowrap">一级分类</th>
+                    <th className="p-3 whitespace-nowrap">二级分类</th>
+                    <th className="p-3 whitespace-nowrap">三级分类</th>
+                    <th className="p-3 whitespace-nowrap">档案库名称</th>
+                    <th className="p-3 text-right rounded-tr-lg whitespace-nowrap">记录数量</th>
+                  </tr>
+                </thead>
+                <tbody className="text-sm text-[#e0e0e0]">
+                  {allProjects.map(proj => {
+                    const parts = proj.tags && proj.tags[0] ? proj.tags[0].split(" / ") : ["-", "-", "-"];
+                    const l1 = parts[0] || "-";
+                    const l2 = parts[1] || "-";
+                    const l3 = parts[2] || "-";
+                    return (
+                      <tr key={proj.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                        <td className="p-3 text-[#A0A0A0]">{l1}</td>
+                        <td className="p-3 text-[#A0A0A0]">{l2}</td>
+                        <td className="p-3 text-amber-400/80">{l3}</td>
+                        <td className="p-3 font-medium text-[#DCDCDC]">{proj.name}</td>
+                        <td className="p-3 text-right text-[#4cd7f6]">{proj.comments ? proj.comments.length : 0}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
 
           {/* Portfolio List */}
@@ -577,30 +544,81 @@ export default function ProfileView({
                         <div
                           key={p.id}
                           onClick={() => setSelectedArchiveId(p.id)}
-                          className="bg-[#1A1A1E] rounded-2xl border border-[#242428] hover:border-[#333338] transition-all duration-200 overflow-hidden active:scale-[0.99] mb-3 cursor-pointer"
+                          className="bg-[#1A1A1E] rounded-2xl border border-[#242428] hover:border-[#333338] transition-all duration-200 overflow-hidden active:scale-[0.99] mb-4 cursor-pointer p-5 flex flex-col items-center text-center"
                         >
-                          <div className="px-5 py-4">
-                            {/* 顶部行：标签 */}
-                            <div className="flex items-center justify-between mb-2.5">
-                              <div className="flex items-center gap-1.5">
-                                <span className="text-[11px] font-medium text-amber-400/80 uppercase tracking-wide">
-                                  {lastTag}
-                                </span>
-                                {recordCount > 0 && (
-                                  <>
-                                    <span className="text-[#383838]">·</span>
-                                    <span className="text-[11px] text-[#505050]">{recordCount} 条记录</span>
-                                  </>
-                                )}
+                          {/* 顶部标签行：展开的 tagsPath, 收藏星形, ...菜单 */}
+                          <div className="w-full flex items-start justify-between mb-6">
+                            <div className="flex flex-col items-start gap-2.5">
+                              {/* 分类标签胶囊 */}
+                              <div className="px-3 py-1.5 rounded-lg border border-[#A88840]/30 bg-[#282218] flex items-center">
+                                {tagsPath.map((tag, i) => (
+                                  <React.Fragment key={i}>
+                                    <span className="text-[12px] font-medium text-[#E8C870] tracking-wide">{tag}</span>
+                                    {i < tagsPath.length - 1 && <ChevronRight className="w-3.5 h-3.5 text-[#808080] mx-1.5" />}
+                                  </React.Fragment>
+                                ))}
                               </div>
+                              {/* 记录数胶囊 */}
+                              {recordCount > 0 && (
+                                <div className="px-2.5 py-1 rounded-md border border-[#2E4A56] bg-[#1C252A]">
+                                  <span className="text-[11px] font-bold text-[#4cd7f6] tracking-wider">{recordCount} 条记录</span>
+                                </div>
+                              )}
                             </div>
-                            <h3 className="text-[15px] font-semibold text-[#DCDCDC] leading-[1.4] mb-1.5">
-                              {p.name}
-                            </h3>
-                            <p className="text-[13px] text-[#808080] leading-[1.65] line-clamp-2" style={{ wordBreak: "break-word" }}>
-                              {p.intro}
-                            </p>
+                            <div className="flex items-center gap-4 mt-1">
+                              {/* 收藏图标 */}
+                              <button 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (onBookmarkToggle) onBookmarkToggle(p.id, e);
+                                }}
+                                className="p-1 -mr-1 rounded-md hover:bg-white/5 active:scale-95 transition-all"
+                              >
+                                <Star className="w-5 h-5 fill-amber-400 text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.3)]" />
+                              </button>
+                              <button 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setActiveMenuId(activeMenuId === p.id ? null : p.id);
+                                }}
+                                className="p-1 -ml-1 rounded-md hover:bg-white/5 active:scale-95 transition-all relative"
+                              >
+                                <MoreHorizontal className="w-5 h-5 text-[#808080] hover:text-[#C0C0C0] transition-colors" />
+                              </button>
+                            </div>
                           </div>
+                          
+                          {/* 标题和简介 (居中) */}
+                          <h3 className="text-[20px] md:text-[22px] font-black text-[#F8F8F8] leading-tight mb-3.5 tracking-wide drop-shadow-md">
+                            {p.name}
+                          </h3>
+                          <p className="text-[14px] text-[#A0A0A0] leading-[1.7] line-clamp-2 max-w-[92%]" style={{ wordBreak: "break-word" }}>
+                            {p.intro}
+                          </p>
+
+                          {/* 展开的操作菜单 */}
+                          {activeMenuId === p.id && (
+                            <div
+                              className="border-t border-[#242428] flex animate-fade-in w-full mt-5"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <button
+                                onClick={() => { handleOpenForm(p); }}
+                                className="flex-1 flex items-center justify-center gap-2 py-3 text-[13px] font-medium text-[#A0A0A0] hover:bg-white/5 transition-colors"
+                              >
+                                <Edit2 className="w-4 h-4" />
+                                编辑
+                              </button>
+                              <div className="w-px bg-[#242428]" />
+                              <button
+                                onClick={() => handleDelete(p.id)}
+                                className="flex-1 flex items-center justify-center gap-2 py-3 text-[13px] font-medium text-[#D05050] hover:bg-red-500/5 transition-colors"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                                删除
+                              </button>
+                            </div>
+                          )}
                         </div>
                       );
                     })}
@@ -635,6 +653,22 @@ export default function ProfileView({
                                 </span>
                               )}
                               <span className="text-[12px] text-[#606060] whitespace-nowrap">{r.timeAgo || "刚刚"}</span>
+                              
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (r.projectId && onToggleRecordBookmark) {
+                                    onToggleRecordBookmark(r.projectId, r.id);
+                                  }
+                                }}
+                                className={`ml-1 p-1 rounded-md transition-colors ${
+                                  r.bookmarked 
+                                    ? "text-amber-400 bg-amber-400/10" 
+                                    : "text-[#606060] hover:text-[#A0A0A0] hover:bg-white/5"
+                                }`}
+                              >
+                                <Star className={`w-3.5 h-3.5 ${r.bookmarked ? "fill-amber-400" : ""}`} />
+                              </button>
                             </div>
                           </div>
                           <div className="relative">
@@ -686,7 +720,7 @@ export default function ProfileView({
                       return (
                         <div
                           key={r.id}
-                          onClick={() => { if (r.projectId) { setSelectedArchiveId(r.projectId); setSelectedRecordId(r.id); } }}
+                          onClick={() => { if (onEditDraft) onEditDraft(r); }}
                           className="bg-[#1A1A1E] rounded-2xl px-5 py-4 cursor-pointer border border-[#242428] hover:border-[#333338] active:scale-[0.99] transition-all duration-200 mb-3"
                         >
                           <div className="flex items-start justify-between gap-3 mb-3">
@@ -717,7 +751,7 @@ export default function ProfileView({
                                 overflow: "hidden"
                               }}
                             >
-                              {r.content}
+                              {r.content?.replace(/<[^>]+>/g, '') || ""}
                             </p>
                             {isLong && (
                               <div className="absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-t from-[#1A1A1E] to-transparent pointer-events-none" />
@@ -743,6 +777,203 @@ export default function ProfileView({
 
         </div>
       </div>
+
+      {/* 新建/编辑弹窗 — 毛玻璃模态 */}
+      {isFormOpen && (
+        <div className="fixed inset-0 z-[100] flex items-end md:items-center justify-center">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={handleCloseForm} />
+          <div className="relative w-full max-w-md bg-[#1A1A1E] border border-[#2A2A2E] shadow-2xl rounded-t-2xl md:rounded-2xl p-6 animate-fade-in z-10">
+            
+            {/* 手机端拖拽指示条 */}
+            <div className="md:hidden w-10 h-1 bg-[#383838] rounded-full mx-auto mb-5" />
+            
+            <button
+              onClick={handleCloseForm}
+              className="absolute top-4 right-4 p-1.5 text-[#606060] hover:text-white transition-colors rounded-lg hover:bg-white/5"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <h3 className="text-[18px] font-bold text-[#E0E0E0] mb-5">
+              {editingId ? "编辑档案库" : "新建档案库"}
+            </h3>
+
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {/* 名称 */}
+              <div>
+                <label className="block text-[12px] font-medium text-[#707070] mb-1.5 tracking-wide">名称</label>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={e => setFormData({...formData, name: e.target.value})}
+                  className="w-full bg-[#141416] border border-[#2A2A2E] rounded-xl px-4 py-3 text-[15px] text-[#E0E0E0] placeholder-[#404040] focus:outline-none focus:border-[#505058] transition-colors"
+                  placeholder="例如：智能财报翻译官"
+                  required
+                />
+              </div>
+
+              {/* 标签 */}
+              <div>
+                <label className="block text-[12px] font-medium text-[#707070] mb-1.5 tracking-wide">绑定分类标签</label>
+                <CategoryCascader
+                  value={formData.tag}
+                  onChange={tag => setFormData({...formData, tag})}
+                  disabledLevels={
+                    !editingId && filterTag && filterTag !== "全部" && filterTag !== "全部档案" 
+                      ? [true, filterTag.split(' / ').length >= 2, filterTag.split(' / ').length >= 3] 
+                      : [false, false, false]
+                  }
+                />
+              </div>
+
+              {/* 简介 */}
+              <div>
+                <label className="block text-[12px] font-medium text-[#707070] mb-1.5 tracking-wide">简介</label>
+                <textarea
+                  value={formData.intro}
+                  onChange={e => setFormData({...formData, intro: e.target.value})}
+                  className="w-full bg-[#141416] border border-[#2A2A2E] rounded-xl px-4 py-3 text-[15px] text-[#E0E0E0] placeholder-[#404040] focus:outline-none focus:border-[#505058] transition-colors min-h-[100px] resize-none leading-[1.7]"
+                  placeholder="一句话描述这个项目的核心痛点和方案..."
+                  required
+                />
+              </div>
+
+              {/* 自定义评分模板 */}
+              <div>
+                <label className="block text-[12px] font-medium text-[#707070] mb-1.5 tracking-wide">自定义评分维度（如：豆瓣、IMDB）</label>
+                <div className="flex gap-2 mb-2">
+                  <input
+                    type="text"
+                    value={ratingInput}
+                    onChange={(e) => setRatingInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        if (ratingInput.trim() && !formData.ratingFields.includes(ratingInput.trim())) {
+                          setFormData({ ...formData, ratingFields: [...formData.ratingFields, ratingInput.trim()] });
+                          setRatingInput("");
+                        }
+                      }
+                    }}
+                    className="flex-1 bg-[#141416] border border-[#2A2A2E] rounded-lg px-3 py-2 text-[13px] text-[#E0E0E0] placeholder-[#404040] focus:outline-none focus:border-[#505058] transition-colors"
+                    placeholder="输入维度名称后回车或点击添加..."
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (ratingInput.trim() && !formData.ratingFields.includes(ratingInput.trim())) {
+                        setFormData({ ...formData, ratingFields: [...formData.ratingFields, ratingInput.trim()] });
+                        setRatingInput("");
+                      }
+                    }}
+                    className="px-3 py-2 bg-[#2A2A2E] text-[#A0A0A0] hover:text-white rounded-lg text-[12px] font-medium transition-colors"
+                  >
+                    添加
+                  </button>
+                </div>
+                {formData.ratingFields.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {formData.ratingFields.map(field => (
+                      <div key={field} className="flex items-center gap-1.5 px-2 py-1 bg-[#1A1F2A] border border-[#4A90D9]/30 rounded-md text-[11px] text-[#7EB8E0]">
+                        <span>{field}</span>
+                        <button
+                          type="button"
+                          onClick={() => setFormData({ ...formData, ratingFields: formData.ratingFields.filter(f => f !== field) })}
+                          className="hover:text-red-400 transition-colors"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* 自定义输入字段配置 */}
+              <div>
+                <label className="block text-[12px] font-medium text-[#707070] mb-1.5 tracking-wide">自定义输入字段（如：项目链接、核心技术）</label>
+                <div className="flex gap-2 mb-2">
+                  <input
+                    type="text"
+                    value={customInputName}
+                    onChange={(e) => setCustomInputName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        if (customInputName.trim() && !formData.customInputs.some(f => f.name === customInputName.trim())) {
+                          setFormData({ ...formData, customInputs: [...formData.customInputs, { name: customInputName.trim(), type: customInputType }] });
+                          setCustomInputName("");
+                        }
+                      }
+                    }}
+                    className="flex-[2] bg-[#141416] border border-[#2A2A2E] rounded-lg px-3 py-2 text-[13px] text-[#E0E0E0] placeholder-[#404040] focus:outline-none focus:border-[#505058] transition-colors"
+                    placeholder="字段名称..."
+                  />
+                  <select
+                    value={customInputType}
+                    onChange={(e) => setCustomInputType(e.target.value as 'singleLine' | 'multiLine')}
+                    className="flex-1 bg-[#141416] border border-[#2A2A2E] rounded-lg px-2 py-2 text-[13px] text-[#A0A0A0] focus:outline-none focus:border-[#505058] transition-colors cursor-pointer appearance-none"
+                  >
+                    <option value="singleLine">单行</option>
+                    <option value="multiLine">长文本</option>
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (customInputName.trim() && !formData.customInputs.some(f => f.name === customInputName.trim())) {
+                        setFormData({ ...formData, customInputs: [...formData.customInputs, { name: customInputName.trim(), type: customInputType }] });
+                        setCustomInputName("");
+                      }
+                    }}
+                    className="px-3 py-2 bg-[#2A2A2E] text-[#A0A0A0] hover:text-white rounded-lg text-[12px] font-medium transition-colors"
+                  >
+                    添加
+                  </button>
+                </div>
+                {formData.customInputs.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {formData.customInputs.map(field => (
+                      <div key={field.name} className="flex items-center gap-1.5 px-2 py-1 bg-[#231F1A] border border-[#D9A04A]/30 rounded-md text-[11px] text-[#E0B87E]">
+                        <span>{field.name} ({field.type === 'singleLine' ? '单行' : '长文本'})</span>
+                        <button
+                          type="button"
+                          onClick={() => setFormData({ ...formData, customInputs: formData.customInputs.filter(f => f.name !== field.name) })}
+                          className="hover:text-red-400 transition-colors"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* 操作按钮 */}
+              <div className="pt-3 flex gap-3">
+                <button
+                  type="button"
+                  onClick={handleCloseForm}
+                  className="flex-1 py-3 rounded-xl text-[13px] font-semibold border border-[#2A2A2E] text-[#808080] hover:bg-white/5 transition-colors"
+                >
+                  取消
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-3 rounded-xl text-[13px] font-semibold bg-[#F0F0F0] text-[#141416] hover:bg-white transition-colors"
+                >
+                  保存
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 点击卡片外区域时关闭菜单 */}
+      {activeMenuId && (
+        <div className="fixed inset-0 z-10" onClick={() => setActiveMenuId(null)} />
+      )}
+
     </div>
   );
 }

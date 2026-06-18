@@ -44,6 +44,19 @@ export interface Comment {
   projectName?: string;
   category?: string;
   ratings?: Record<string, number>;
+  customData?: Record<string, string>;
+  bookmarked?: boolean;
+}
+
+export interface DraftRecord {
+  id: string;
+  title: string;
+  content: string;
+  targetProjectId: string | null;
+  tag: string;
+  ratings: Record<string, string>;
+  customData: Record<string, string>;
+  timeAgo: string;
 }
 
 // ========== 项目核心模型 ==========
@@ -61,6 +74,7 @@ export interface Project {
     [K in keyof RadarDimensions]?: { author: string; avatarUrl: string };
   };
   ratingFields?: string[];
+  customInputs?: { name: string; type: 'singleLine' | 'multiLine' }[];
 
   tags: string[];
   commentsCount: number;

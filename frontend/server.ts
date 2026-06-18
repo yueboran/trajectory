@@ -132,6 +132,27 @@ app.get("/api/projects/:id", (req, res) => {
   }
 });
 
+// 2.5 收藏项目
+app.post("/api/projects/:id/bookmark", (req, res) => {
+  const proj = projects.find(p => p.id === req.params.id);
+  if (proj) {
+    proj.bookmarked = !proj.bookmarked;
+  }
+  res.json({ success: true });
+});
+
+// 2.6 收藏记录
+app.post("/api/projects/:id/comments/:commentId/bookmark", (req, res) => {
+  const proj = projects.find(p => p.id === req.params.id);
+  if (proj && proj.comments) {
+    const comment = proj.comments.find(c => c.id === req.params.commentId);
+    if (comment) {
+      comment.bookmarked = !comment.bookmarked;
+    }
+  }
+  res.json({ success: true });
+});
+
 // 3. 添加评论
 app.post("/api/projects/:id/comments", (req, res) => {
   const { author, content } = req.body;
@@ -139,9 +160,28 @@ app.post("/api/projects/:id/comments", (req, res) => {
     return res.status(400).json({ error: "Author and content are required" });
   }
 
-  const proj = projects.find(p => p.id === req.params.id);
+  let proj = projects.find(p => p.id === req.params.id);
   if (!proj) {
-    return res.status(404).json({ error: "Project not found" });
+    // 为本地新建的档案库做兜底，防止 404 导致无法保存
+    proj = {
+      id: req.params.id,
+      name: "新档案库",
+      coverImage: COVER_NEBULA,
+      icon: "folder",
+      hotness: "0",
+      intro: "",
+      description: "",
+      auroraScore: 80,
+      likes: 0,
+      timeAgo: "刚刚",
+      bookmarked: false,
+      tags: [],
+      commentsCount: 0,
+      radar: { concept: 80, research: 80, planning: 80, extension: 80, evaluation: 80 },
+      radarContributors: {},
+      comments: []
+    };
+    projects.push(proj);
   }
 
   const newComment = {

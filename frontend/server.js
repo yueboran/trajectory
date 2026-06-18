@@ -113,9 +113,27 @@ app.post("/api/projects/:id/comments", (req, res) => {
   if (!author || !content) {
     return res.status(400).json({ error: "Author and content are required" });
   }
-  const proj = projects.find((p) => p.id === req.params.id);
+  let proj = projects.find((p) => p.id === req.params.id);
   if (!proj) {
-    return res.status(404).json({ error: "Project not found" });
+    proj = {
+      id: req.params.id,
+      name: "\u65B0\u6863\u6848\u5E93",
+      coverImage: COVER_NEBULA,
+      icon: "folder",
+      hotness: "0",
+      intro: "",
+      description: "",
+      auroraScore: 80,
+      likes: 0,
+      timeAgo: "\u521A\u521A",
+      bookmarked: false,
+      tags: [],
+      commentsCount: 0,
+      radar: { concept: 80, research: 80, planning: 80, extension: 80, evaluation: 80 },
+      radarContributors: {},
+      comments: []
+    };
+    projects.push(proj);
   }
   const newComment = {
     id: "c_" + Date.now(),

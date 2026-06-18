@@ -30,6 +30,7 @@ export interface TiptapEditorRef {
 
 interface TiptapEditorProps {
   placeholder?: string;
+  initialContent?: string;
 }
 
 // ==================== 颜色预设 ====================
@@ -308,7 +309,7 @@ function CustomBubbleMenu({ editor }: { editor: any }) {
 
 // ==================== 主编辑器组件 ====================
 const TiptapEditor = forwardRef<TiptapEditorRef, TiptapEditorProps>(
-  ({ placeholder = "开始记录你的想法... 输入 / 唤起命令菜单" }, ref) => {
+  ({ placeholder = "开始记录你的想法... 输入 / 唤起命令菜单", initialContent = "" }, ref) => {
     const [showSlashMenu, setShowSlashMenu] = useState(false);
     const [slashMenuPos, setSlashMenuPos] = useState({ top: 0, left: 0 });
     const [slashQuery, setSlashQuery] = useState("");
@@ -333,7 +334,7 @@ const TiptapEditor = forwardRef<TiptapEditorRef, TiptapEditorProps>(
         TaskItem.configure({ nested: true }),
         Placeholder.configure({ placeholder }),
       ],
-      content: "",
+      content: initialContent,
       editorProps: {
         attributes: {
           class: "tiptap-prosemirror",

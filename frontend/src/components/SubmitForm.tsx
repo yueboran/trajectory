@@ -1,7 +1,7 @@
 import React, { useState, useRef } from "react";
 import TiptapEditor, { TiptapEditorRef } from "./TiptapEditor";
 import { Sparkles } from "lucide-react";
-import { Project } from "../types";
+import { Project, Comment, DraftRecord } from "../types";
 import { getSelectableTags } from "../data/treeData";
 import CategoryCascader from "./CategoryCascader";
 import ConfirmModal from "./ConfirmModal";
@@ -13,15 +13,21 @@ interface SubmitFormProps {
   isLocked?: boolean;
   targetProjectId?: string | null;
   ratingFields?: string[];
+  customInputs?: { name: string; type: 'singleLine' | 'multiLine' }[];
+  initialRecord?: Comment | null;
+  initialDraft?: DraftRecord | null;
+  onSaveDraft?: (draft: DraftRecord) => void;
+  onDiscardDraft?: (draftId: string) => void;
 }
 
-export default function SubmitForm({ onSuccess, onCancel, initialTag, isLocked, targetProjectId, ratingFields }: SubmitFormProps) {
+export default function SubmitForm({ onSuccess, onCancel, initialTag, isLocked, targetProjectId, ratingFields, customInputs, initialRecord, initialDraft, onSaveDraft, onDiscardDraft }: SubmitFormProps) {
   const [errorMessage, setErrorMessage] = useState("");
   const [showCancelModal, setShowCancelModal] = useState(false);
   const selectableTags = getSelectableTags();
   // 设置默认的三级路径
-  const [selectedTag, setSelectedTag] = useState(initialTag || selectableTags[0]?.value || "1. 健康与精力 / 身体健康 / 运动记录");
-  const [ratings, setRatings] = useState<Record<string, string>>({});
+  const [selectedTag, setSelectedTag] = useState(initialTag || initialRecord?.category || initialDraft?.tag || selectableTags[0]?.value || "1. 健康与精力 / 身体健康 / 运动记录");
+  const [ratings, setRatings] = useState<Record<string, string>>(initialRecord?.ratings ? Object.fromEntries(Object.entries(initialRecord.ratings).map(([k, v]) => [k, v.toString()])) : (initialDraft?.ratings || {}));
+  const [customData, setCustomData] = useState<Record<string, string>>(initialRecord?.customData || initialDraft?.customData || {});
   const editorRef = useRef<TiptapEditorRef>(null);
 
   React.useEffect(() => {
@@ -30,17 +36,37 @@ export default function SubmitForm({ onSuccess, onCancel, initialTag, isLocked, 
     }
   }, [initialTag]);
 
-  // 全局暴露脏状态供跨 Tab 切换拦截
+  // 全局暴露脏状态供跨 Tab 切换拦截，并暴露草稿保存方法
   React.useEffect(() => {
     const interval = setInterval(() => {
       const text = editorRef.current?.getText() || "";
       (window as any).isSubmitFormDirty = text.trim().length > 0;
     }, 1000);
+
+    (window as any).saveCurrentDraft = () => {
+      const html = editorRef.current?.getHTML() || "";
+      const text = editorRef.current?.getText() || "";
+      if (text.trim().length === 0) return null;
+      const title = text.trim().slice(0, 20) || "草稿记录";
+      const draft: DraftRecord = {
+        id: initialDraft?.id || "draft-" + Date.now(),
+        title,
+        content: html,
+        targetProjectId: targetProjectId || null,
+        tag: selectedTag,
+        ratings,
+        customData,
+        timeAgo: new Date().toLocaleString("zh-CN", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })
+      };
+      return draft;
+    };
+
     return () => {
       clearInterval(interval);
       (window as any).isSubmitFormDirty = false;
+      delete (window as any).saveCurrentDraft;
     };
-  }, []);
+  }, [initialDraft, targetProjectId, selectedTag, ratings, customData]);
 
   const handleCancelClick = () => {
     const text = editorRef.current?.getText() || "";
@@ -51,16 +77,12 @@ export default function SubmitForm({ onSuccess, onCancel, initialTag, isLocked, 
     }
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!editorRef.current) return;
     
     const html = editorRef.current.getHTML();
     const text = editorRef.current.getText();
 
-    if (editorRef.current.isEmpty()) {
-      setErrorMessage("写点什么吧...");
-      return;
-    }
     setErrorMessage("");
 
     const title = text.trim().slice(0, 20) || "生活点滴";
@@ -74,40 +96,65 @@ export default function SubmitForm({ onSuccess, onCancel, initialTag, isLocked, 
     });
 
     if (targetProjectId) {
-      const newComment = {
-        id: "comment-" + Date.now(),
-        author: "Me",
-        timeAgo: "刚刚",
+      const payload = {
+        author: "月伯然",
         title: title,
         content: html,
-        ratings: parsedRatings
+        ratings: parsedRatings,
+        customData: customData,
+        type: initialRecord ? initialRecord.type : undefined,
+        category: selectedTag,
       };
-      onSuccess(newComment, true);
-    } else {
-      const newProject: Project = {
-        id: "proj-" + Date.now(),
-        name: title,
-        icon: "rocket_launch", 
-        intro: plainDescription.slice(0, 100) + (plainDescription.length > 100 ? "..." : ""),
-        description: html,
-        auroraScore: 10 + Math.random() * 20,
-        radar: {
-          concept: Math.round(50 + Math.random() * 40),
-          research: Math.round(30 + Math.random() * 30),
-          planning: Math.round(20 + Math.random() * 30),
-          extension: Math.round(10 + Math.random() * 20),
-          evaluation: Math.round(10 + Math.random() * 20),
-        },
-        tags: [selectedTag],
-        commentsCount: 0,
-        timeAgo: "刚刚",
-        comments: [],
-        hotness: "0k",
-        likes: 0,
-      };
-      onSuccess(newProject, false);
+      
+      try {
+        const isEdit = !!initialRecord;
+        const url = isEdit
+          ? `/api/projects/${targetProjectId}/comments/${initialRecord.id}`
+          : `/api/projects/${targetProjectId}/comments`;
+          
+        const response = await fetch(url, {
+          method: isEdit ? "PUT" : "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(payload)
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          // API 返回的是 ApiResponse，数据在 data 字段中。如果是我们自己封装的，我们提取 data.data 或 data 本身
+          // 这里 main.py 返回 make_response(schema)，也就是 {"status": "success", "data": ...}
+          const commentData = data.data || data;
+          onSuccess(commentData, true);
+        } else {
+          setErrorMessage("提交失败，请重试");
+        }
+      } catch (err) {
+        setErrorMessage("网络错误");
+      }
     }
   };
+
+  if (!targetProjectId) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[70vh] text-center px-6 animate-fade-in">
+        <div className="w-20 h-20 mb-6 rounded-full bg-[#1A1B1E] border border-white/5 flex items-center justify-center shadow-inner">
+          <Sparkles className="w-8 h-8 text-[#A0A0A0]/50" />
+        </div>
+        <h2 className="text-[22px] font-black tracking-wide text-white mb-4">草稿箱为空</h2>
+        <div className="text-[#808080] text-[14px] leading-relaxed max-w-sm">
+          <p className="mb-2">请按照以下流程操作：</p>
+          <p className="flex items-center justify-center gap-2">
+            <span className="px-2 py-1 bg-white/5 rounded-md text-[12px]">选择列表或主页</span> 
+            <span>→</span>
+            <span className="px-2 py-1 bg-white/5 rounded-md text-[12px]">选择档案库</span>
+            <span>→</span>
+            <span className="px-2 py-1 bg-amber-500/10 text-amber-500 rounded-md text-[12px]">创建/编辑记录</span>
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="pb-32 px-4 select-none max-w-2xl mx-auto w-full animate-fade-in mt-4">
@@ -117,28 +164,43 @@ export default function SubmitForm({ onSuccess, onCancel, initialTag, isLocked, 
         message="是否将当前内容保存为草稿？"
         onConfirm={() => {
           setShowCancelModal(false);
+          if (onSaveDraft && (window as any).saveCurrentDraft) {
+            const draft = (window as any).saveCurrentDraft();
+            if (draft) {
+              onSaveDraft(draft);
+            }
+          }
           if (onCancel) onCancel();
         }}
         onCancel={() => {
           setShowCancelModal(false);
+          if (initialDraft && onDiscardDraft) {
+            onDiscardDraft(initialDraft.id);
+          }
           if (onCancel) onCancel();
         }}
       />
       <div className="space-y-4">
         {/* 选项区：档案库选择（三级联动） */}
         <div className="relative z-20 p-5 bg-[#1a1b1e]/50 backdrop-blur-sm border border-white/5 rounded-2xl shadow-inner transition-all hover:border-white/10">
-          <label className="block text-[13px] font-bold text-[#cbc3d7] mb-3 tracking-wide pl-1">选择档案库分类</label>
-          <CategoryCascader 
-            value={selectedTag} 
-            onChange={setSelectedTag} 
-            disabledLevels={isLocked ? [true, true, true] : [false, false, false]}
-          />
+          <label className="block text-[13px] font-bold text-[#cbc3d7] mb-3 tracking-wide pl-1">档案库归属</label>
+          {isLocked ? (
+            <div className="w-full bg-[#1a1b1e]/80 backdrop-blur-md border border-white/10 rounded-xl px-4 py-3.5 text-[14px] text-[#A0A0A0] transition-colors flex justify-start items-center opacity-70 cursor-not-allowed select-none">
+              <span className="truncate">{selectedTag}</span>
+            </div>
+          ) : (
+            <CategoryCascader 
+              value={selectedTag} 
+              onChange={setSelectedTag} 
+              disabledLevels={[false, false, false]}
+            />
+          )}
         </div>
 
         {/* 动态模板输入区 */}
         {ratingFields && ratingFields.length > 0 && (
           <div className="relative z-10 p-5 bg-[#1a1b1e]/50 backdrop-blur-sm border border-amber-500/10 rounded-2xl shadow-inner transition-all hover:border-amber-500/20">
-            <label className="block text-[13px] font-bold text-amber-500/80 mb-3 tracking-wide pl-1">档案库模板：补充评分</label>
+            <label className="block text-[13px] font-bold text-amber-500/80 mb-3 tracking-wide pl-1">补充评分</label>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               {ratingFields.map(field => (
                 <div key={field} className="flex flex-col gap-1.5">
@@ -156,9 +218,39 @@ export default function SubmitForm({ onSuccess, onCancel, initialTag, isLocked, 
           </div>
         )}
 
+        {/* 自定义输入字段渲染区 */}
+        {customInputs && customInputs.length > 0 && (
+          <div className="relative z-10 p-5 bg-[#1a1b1e]/50 backdrop-blur-sm border border-[#4cd7f6]/10 rounded-2xl shadow-inner transition-all hover:border-[#4cd7f6]/20">
+            <label className="block text-[13px] font-bold text-[#4cd7f6]/80 mb-3 tracking-wide pl-1">扩展信息</label>
+            <div className="flex flex-col gap-4">
+              {customInputs.map(field => (
+                <div key={field.name} className="flex flex-col gap-1.5">
+                  <label className="text-[12px] font-medium text-[#A0A0A0] ml-1">{field.name}</label>
+                  {field.type === 'singleLine' ? (
+                    <input
+                      type="text"
+                      value={customData[field.name] || ""}
+                      onChange={(e) => setCustomData({...customData, [field.name]: e.target.value})}
+                      placeholder={`输入 ${field.name}...`}
+                      className="w-full bg-[#141416] border border-[#2A2A2E] rounded-xl px-4 py-3 text-[14px] text-[#E0E0E0] placeholder-[#404040] focus:outline-none focus:border-[#4cd7f6]/50 transition-colors"
+                    />
+                  ) : (
+                    <textarea
+                      value={customData[field.name] || ""}
+                      onChange={(e) => setCustomData({...customData, [field.name]: e.target.value})}
+                      placeholder={`输入 ${field.name}...`}
+                      className="w-full bg-[#141416] border border-[#2A2A2E] rounded-xl px-4 py-3 text-[14px] text-[#E0E0E0] placeholder-[#404040] focus:outline-none focus:border-[#4cd7f6]/50 transition-colors min-h-[100px] resize-none leading-[1.7]"
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Tiptap 富文本编辑器 */}
         <div className="mt-4 relative group bg-[#1a1b1e]/50 backdrop-blur-sm border border-white/5 rounded-2xl p-5 focus-within:border-amber-500/30 focus-within:bg-[#1a1b1e]/80 transition-all duration-300 min-h-[300px] flex flex-col shadow-inner">
-          <TiptapEditor ref={editorRef} />
+          <TiptapEditor ref={editorRef} initialContent={initialRecord?.content || initialDraft?.content || ""} />
           <div className="absolute top-4 right-4 pointer-events-none opacity-0 group-focus-within:opacity-100 transition-opacity duration-500">
              <Sparkles className="w-5 h-5 text-amber-400/30" />
           </div>

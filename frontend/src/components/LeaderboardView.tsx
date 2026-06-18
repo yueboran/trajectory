@@ -12,7 +12,8 @@ interface LeaderboardViewProps {
   onUpdateProject?: (id: string, p: Partial<Project>) => void;
   onDeleteProject?: (id: string) => void;
   onBookmarkToggle?: (id: string, e: React.MouseEvent) => void;
-  onNavigateToSubmit?: (projectId: string, tag: string, ratingFields?: string[]) => void;
+  onToggleRecordBookmark?: (projectId: string, recordId: string) => void;
+  onNavigateToSubmit?: (projectId: string, tag: string, ratingFields?: string[], customInputs?: {name: string, type: 'singleLine'|'multiLine'}[]) => void;
 }
 
 /**
@@ -25,11 +26,13 @@ interface LeaderboardViewProps {
  * 4. 操作按钮收敛进 ··· 菜单，保持界面克制
  * 5. Hero 区域柔和渐变，减少视觉压迫
  */
-export default function LeaderboardView({ projects, initialFilter = "全部", onSelectProject, onAddProject, onUpdateProject, onDeleteProject, onBookmarkToggle, onNavigateToSubmit }: LeaderboardViewProps) {
+export default function LeaderboardView({ projects, initialFilter = "全部", onSelectProject, onAddProject, onUpdateProject, onDeleteProject, onBookmarkToggle, onToggleRecordBookmark, onNavigateToSubmit }: LeaderboardViewProps) {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [formData, setFormData] = useState<{name: string, intro: string, tag: string, ratingFields: string[]}>({ name: "", intro: "", tag: "", ratingFields: [] });
+  const [formData, setFormData] = useState<{name: string, intro: string, tag: string, ratingFields: string[], customInputs: { name: string; type: 'singleLine' | 'multiLine' }[]}>({ name: "", intro: "", tag: "", ratingFields: [], customInputs: [] });
   const [ratingInput, setRatingInput] = useState("");
+  const [customInputName, setCustomInputName] = useState("");
+  const [customInputType, setCustomInputType] = useState<'singleLine' | 'multiLine'>('singleLine');
   // 档案库内部导航状态
   const [selectedArchiveId, setSelectedArchiveId] = useState<string | null>(null);
   // 展开的操作菜单
@@ -59,7 +62,8 @@ export default function LeaderboardView({ projects, initialFilter = "全部", on
         name: project.name,
         intro: project.intro,
         tag: project.tags && project.tags.length > 0 ? project.tags[0] : selectableTags[0]?.value || "",
-        ratingFields: project.ratingFields || []
+        ratingFields: project.ratingFields || [],
+        customInputs: project.customInputs || []
       });
     } else {
       setEditingId(null);
@@ -70,7 +74,7 @@ export default function LeaderboardView({ projects, initialFilter = "全部", on
           initialTag = matchedTag.value;
         }
       }
-      setFormData({ name: "", intro: "", tag: initialTag, ratingFields: [] });
+      setFormData({ name: "", intro: "", tag: initialTag, ratingFields: [], customInputs: [] });
     }
     setActiveMenuId(null);
     setIsFormOpen(true);
@@ -91,7 +95,8 @@ export default function LeaderboardView({ projects, initialFilter = "全部", on
           name: formData.name,
           intro: formData.intro,
           tags: [formData.tag],
-          ratingFields: formData.ratingFields
+          ratingFields: formData.ratingFields,
+          customInputs: formData.customInputs
         });
       }
     } else {
@@ -103,6 +108,7 @@ export default function LeaderboardView({ projects, initialFilter = "全部", on
           description: formData.intro,
           tags: [formData.tag],
           ratingFields: formData.ratingFields,
+          customInputs: formData.customInputs,
           icon: "folder",
           auroraScore: 80,
           radar: { concept: 80, research: 80, planning: 80, extension: 80, evaluation: 80 },
@@ -145,7 +151,8 @@ export default function LeaderboardView({ projects, initialFilter = "全部", on
       <ArchiveDetailView
         project={selectedProject}
         onBack={() => setSelectedArchiveId(null)}
-        onAddRecord={(projectId, tag, ratingFields) => onNavigateToSubmit?.(projectId, tag, ratingFields)}
+        onToggleRecordBookmark={onToggleRecordBookmark}
+        onAddRecord={(projectId, tag, ratingFields, customInputs) => onNavigateToSubmit?.(projectId, tag, ratingFields, customInputs)}
       />
     );
   }
@@ -407,6 +414,65 @@ export default function LeaderboardView({ projects, initialFilter = "全部", on
                         <button
                           type="button"
                           onClick={() => setFormData({ ...formData, ratingFields: formData.ratingFields.filter(f => f !== field) })}
+                          className="hover:text-red-400 transition-colors"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* 自定义输入字段配置 */}
+              <div>
+                <label className="block text-[12px] font-medium text-[#707070] mb-1.5 tracking-wide">自定义输入字段（如：项目链接、核心技术）</label>
+                <div className="flex gap-2 mb-2">
+                  <input
+                    type="text"
+                    value={customInputName}
+                    onChange={(e) => setCustomInputName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        if (customInputName.trim() && !formData.customInputs.some(f => f.name === customInputName.trim())) {
+                          setFormData({ ...formData, customInputs: [...formData.customInputs, { name: customInputName.trim(), type: customInputType }] });
+                          setCustomInputName("");
+                        }
+                      }
+                    }}
+                    className="flex-[2] bg-[#141416] border border-[#2A2A2E] rounded-lg px-3 py-2 text-[13px] text-[#E0E0E0] placeholder-[#404040] focus:outline-none focus:border-[#505058] transition-colors"
+                    placeholder="字段名称..."
+                  />
+                  <select
+                    value={customInputType}
+                    onChange={(e) => setCustomInputType(e.target.value as 'singleLine' | 'multiLine')}
+                    className="flex-1 bg-[#141416] border border-[#2A2A2E] rounded-lg px-2 py-2 text-[13px] text-[#A0A0A0] focus:outline-none focus:border-[#505058] transition-colors cursor-pointer appearance-none"
+                  >
+                    <option value="singleLine">单行</option>
+                    <option value="multiLine">长文本</option>
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (customInputName.trim() && !formData.customInputs.some(f => f.name === customInputName.trim())) {
+                        setFormData({ ...formData, customInputs: [...formData.customInputs, { name: customInputName.trim(), type: customInputType }] });
+                        setCustomInputName("");
+                      }
+                    }}
+                    className="px-3 py-2 bg-[#2A2A2E] text-[#A0A0A0] hover:text-white rounded-lg text-[12px] font-medium transition-colors"
+                  >
+                    添加
+                  </button>
+                </div>
+                {formData.customInputs.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {formData.customInputs.map(field => (
+                      <div key={field.name} className="flex items-center gap-1.5 px-2 py-1 bg-[#231F1A] border border-[#D9A04A]/30 rounded-md text-[11px] text-[#E0B87E]">
+                        <span>{field.name} ({field.type === 'singleLine' ? '单行' : '长文本'})</span>
+                        <button
+                          type="button"
+                          onClick={() => setFormData({ ...formData, customInputs: formData.customInputs.filter(f => f.name !== field.name) })}
                           className="hover:text-red-400 transition-colors"
                         >
                           <X className="w-3 h-3" />

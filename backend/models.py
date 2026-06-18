@@ -1,0 +1,62 @@
+from sqlalchemy import Column, String, Integer, Float, Boolean, JSON, ForeignKey
+from sqlalchemy.orm import relationship
+from database import Base
+import uuid
+import datetime
+
+def generate_uuid():
+    return str(uuid.uuid4())
+
+def get_time_ago():
+    return "刚刚"
+
+class Project(Base):
+    __tablename__ = "projects"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    name = Column(String, index=True)
+    coverImage = Column(String, nullable=True)
+    icon = Column(String)
+    intro = Column(String)
+    description = Column(String)
+    auroraScore = Column(Float, default=0.0)
+    radar = Column(JSON) # {concept, research, planning, extension, evaluation}
+    radarContributors = Column(JSON, nullable=True)
+    ratingFields = Column(JSON, nullable=True) # List[str]
+    customInputs = Column(JSON, nullable=True) # List[Dict]
+    tags = Column(JSON) # List[str]
+    commentsCount = Column(Integer, default=0)
+    timeAgo = Column(String, default=get_time_ago)
+    hotness = Column(String, default="0k")
+    likes = Column(Integer, default=0)
+    bookmarked = Column(Boolean, default=False)
+    
+    # 痛点共鸣与共创轨迹
+    painPointCount = Column(Integer, default=0)
+    inspirationSource = Column(String, nullable=True)
+    inspirationAuthor = Column(String, nullable=True)
+    inspirationAuthorRole = Column(String, nullable=True)
+    coCreationTimeline = Column(JSON, nullable=True) # List of events
+    
+    comments = relationship("Comment", back_populates="project", cascade="all, delete-orphan")
+
+class Comment(Base):
+    __tablename__ = "comments"
+
+    id = Column(String, primary_key=True, default=generate_uuid)
+    project_id = Column(String, ForeignKey("projects.id"))
+    author = Column(String)
+    avatarUrl = Column(String, nullable=True)
+    timeAgo = Column(String, default=get_time_ago)
+    title = Column(String, nullable=True)
+    content = Column(String)
+    imageUrl = Column(String, nullable=True)
+    images = Column(JSON, nullable=True) # List[str]
+    type = Column(String, default="comment") # 'comment' or 'expansion'
+    projectName = Column(String, nullable=True)
+    category = Column(String, nullable=True)
+    ratings = Column(JSON, nullable=True) # Record<string, number>
+    customData = Column(JSON, nullable=True) # Record<string, string>
+    bookmarked = Column(Boolean, default=False)
+
+    project = relationship("Project", back_populates="comments")
