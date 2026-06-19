@@ -50,7 +50,7 @@ const MOCK_PROJECTS: Project[] = [
         timeAgo: "5小时前",
         title: "商业模式图谱已更新，添加了基于 Token 消耗量的阶梯定价模型草案。",
         content: "商业模式图谱已更新，添加了基于 Token 消耗量的阶梯定价模型草案。",
-        imageUrl: "/images/mocks/hot_carousel_1.png",
+        imageUrl: "/images/mocks/hot_carousel_1.webp",
         type: "expansion" as const
       },
       {

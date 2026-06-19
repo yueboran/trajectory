@@ -141,7 +141,7 @@ export default function MindMapSection({ onBrowseProjects, onSubmitIdea, onCateg
         {/* Background Image Layer (绑定当前选中节点的图片，如果图片分辨率不够也可暂时用通用 banner) */}
         <div 
           className="absolute inset-0 bg-cover bg-center transition-all duration-1000 ease-in-out hover:scale-105"
-          style={{ backgroundImage: `url(${activeNode?.image || '/images/banners/hero_carousel_banner.png'})` }}
+          style={{ backgroundImage: `url(${activeNode?.image || '/images/banners/hero_carousel_banner.webp'})` }}
         />
         
         {/* Gradient Overlay 渐变遮罩，使文字清晰并向下平滑过渡到 #030712 */}

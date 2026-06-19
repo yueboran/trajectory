@@ -214,7 +214,7 @@ export default function StarMapGraph({ projects, onSelectProject }: StarMapGraph
       {/* 深空背景层 */}
       <div 
         className="absolute inset-0 bg-cover bg-center opacity-30 pointer-events-none transition-transform duration-[20s] group-hover:scale-110"
-        style={{ backgroundImage: 'url(/api/static/images/banners/profile_hero.png)', filter: 'brightness(0.6) contrast(1.2) grayscale(0.2)' }}
+        style={{ backgroundImage: 'url(/api/static/images/banners/profile_hero.webp)', filter: 'brightness(0.6) contrast(1.2) grayscale(0.2)' }}
       />
       <div className="absolute inset-0 bg-gradient-to-t from-[#030712] via-transparent to-[#030712]/80 pointer-events-none" />
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-transparent via-[#030712]/40 to-[#030712] pointer-events-none" />
@@ -238,7 +238,7 @@ export default function StarMapGraph({ projects, onSelectProject }: StarMapGraph
             
             // 1. 星球本体 (Sphere)
             const imgIndex = (node.id.charCodeAt(0) % 4) + 1;
-            const texUrl = `/hot_thumb_${imgIndex}.png`;
+            const texUrl = `/hot_thumb_${imgIndex}.webp`;
             const texture = getTexture(texUrl);
             
             const sphereGeo = new THREE.SphereGeometry(radius, 32, 32);
@@ -326,7 +326,7 @@ export default function StarMapGraph({ projects, onSelectProject }: StarMapGraph
             <div className="flex gap-3 p-4 pb-3 border-b border-white/5 bg-gradient-to-b from-white/5 to-transparent">
               <div 
                 className="w-14 h-14 rounded-lg bg-cover bg-center shrink-0 shadow-lg border border-white/10"
-                style={{ backgroundImage: `url(/hot_thumb_${(hoverNode.id.charCodeAt(0) % 4) + 1}.png)` }}
+                style={{ backgroundImage: `url(/hot_thumb_${(hoverNode.id.charCodeAt(0) % 4) + 1}.webp)` }}
               />
               <div className="flex flex-col justify-center overflow-hidden">
                 <div className="flex items-center gap-1.5 mb-1.5">

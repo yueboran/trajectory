@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { ArrowLeft, ChevronRight, ChevronDown, Plus, Star, MoreHorizontal, Edit2, Trash2 } from "lucide-react";
 import { Project, Comment } from "../types";
+import ConfirmModal from "./ConfirmModal";
 
 interface ArchiveDetailViewProps {
   project: Project;
@@ -60,6 +61,7 @@ function formatExactDate(timeAgo: string | undefined): string {
  */
 export default function ArchiveDetailView({ project, initialRecordId, onBack, onToggleRecordBookmark, onDeleteRecord, onAddRecord }: ArchiveDetailViewProps) {
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
+  const [deleteRecordId, setDeleteRecordId] = useState<string | null>(null);
   const [viewingRecord, setViewingRecord] = useState<Comment | null>(() => {
     if (initialRecordId && project.comments) {
       return project.comments.find(c => c.id === initialRecordId) || null;
@@ -170,9 +172,11 @@ export default function ArchiveDetailView({ project, initialRecordId, onBack, on
         <article className="px-5 md:px-8 pt-6 pb-20 max-w-[640px] mx-auto">
           {/* 标题与时间 */}
           <div className="mb-6 flex flex-col gap-2">
-            <h1 className="text-[24px] md:text-[28px] font-black text-white leading-tight tracking-wide drop-shadow-md">
-              {viewingRecord.title || "无"}
-            </h1>
+            {project.requireTitleField && (
+              <h1 className="text-[24px] md:text-[28px] font-black text-white leading-tight tracking-wide drop-shadow-md">
+                {viewingRecord.title || "无"}
+              </h1>
+            )}
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-3">
                 <p className="text-[13px] text-[#808080] font-medium tracking-wider">{formatExactDate(viewingRecord.timeAgo)}</p>
@@ -286,7 +290,7 @@ export default function ArchiveDetailView({ project, initialRecordId, onBack, on
         <div
           className="absolute inset-0 bg-cover bg-center scale-105"
           style={{
-            backgroundImage: `url(${project.coverImage || '/api/static/images/mocks/hot_carousel_1.png'})`,
+            backgroundImage: `url(${project.coverImage || '/api/static/images/mocks/hot_carousel_1.webp'})`,
             opacity: 0.35,
             filter: "brightness(0.8)",
           }}
@@ -430,10 +434,12 @@ export default function ArchiveDetailView({ project, initialRecordId, onBack, on
                   className="bg-[#1A1A1E] rounded-2xl px-5 py-4 cursor-pointer border border-[#242428] hover:border-[#333338] active:scale-[0.99] transition-all duration-200"
                 >
                   {/* 头部：标题与时间 */}
-                  <div className="flex items-start justify-between gap-3 mb-4">
-                    <h3 className="text-[17px] md:text-[19px] font-black text-white leading-tight line-clamp-2 flex-1 tracking-wide drop-shadow-sm">
-                      {record.title || "无"}
-                    </h3>
+                  <div className={`flex items-start ${project.requireTitleField ? 'justify-between' : 'justify-end'} gap-3 mb-4`}>
+                    {project.requireTitleField && (
+                      <h3 className="text-[17px] md:text-[19px] font-black text-white leading-tight line-clamp-2 flex-1 tracking-wide drop-shadow-sm">
+                        {record.title || "无"}
+                      </h3>
+                    )}
                     
                     <div className="flex flex-col items-end gap-2 shrink-0 mt-1">
                       <div className="flex items-center gap-2">
@@ -570,9 +576,7 @@ export default function ArchiveDetailView({ project, initialRecordId, onBack, on
                       <div className="w-px bg-[#242428] mx-2" />
                       <button
                         onClick={() => {
-                          if (confirm("确定要删除这条记录吗？")) {
-                            onDeleteRecord?.(project.id, record.id);
-                          }
+                          setDeleteRecordId(record.id);
                           setActiveMenuId(null);
                         }}
                         className="flex-1 flex items-center justify-center gap-2 py-2 text-[12px] font-medium text-[#c45353] hover:bg-red-500/10 transition-colors rounded-lg"
@@ -588,6 +592,22 @@ export default function ArchiveDetailView({ project, initialRecordId, onBack, on
           )}
         </div>
       </div>
+      
+      <ConfirmModal
+        isOpen={!!deleteRecordId}
+        title="删除记录"
+        message="确定要删除这条记录吗？该操作不可恢复。"
+        confirmText="确认删除"
+        cancelText="取消"
+        variant="danger"
+        onConfirm={() => {
+          if (deleteRecordId && onDeleteRecord) {
+            onDeleteRecord(project.id, deleteRecordId);
+          }
+          setDeleteRecordId(null);
+        }}
+        onCancel={() => setDeleteRecordId(null)}
+      />
     </div>
   );
 }

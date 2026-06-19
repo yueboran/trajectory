@@ -18,6 +18,7 @@ import { Project, PortfolioHolding, PortfolioStats, DraftRecord } from "../types
 import ProjectCard from "./ProjectCard";
 import ArchiveDetailView from "./ArchiveDetailView";
 import CategoryCascader from "./CategoryCascader";
+import ConfirmModal from "./ConfirmModal";
 
 // ========== 组件接口定义 ==========
 interface ProfileViewProps {
@@ -201,12 +202,13 @@ export default function ProfileView({
 
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [formData, setFormData] = useState<{name: string, intro: string, tag: string, ratingFields: string[], customInputs: { name: string; type: 'singleLine' | 'multiLine' }[]}>({ name: "", intro: "", tag: "", ratingFields: [], customInputs: [] });
+  const [formData, setFormData] = useState<{name: string, intro: string, tag: string, ratingFields: string[], customInputs: { name: string; type: 'singleLine' | 'multiLine' }[], requireTitleField: boolean}>({ name: "", intro: "", tag: "", ratingFields: [], customInputs: [], requireTitleField: false });
   const [ratingInput, setRatingInput] = useState("");
   const [customInputName, setCustomInputName] = useState("");
   const [customInputType, setCustomInputType] = useState<'singleLine' | 'multiLine'>('singleLine');
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
   const [filterTag, setFilterTag] = useState<string>("全部档案");
+  const [deleteProjectId, setDeleteProjectId] = useState<string | null>(null);
 
   const handleOpenForm = (project?: Project) => {
     if (project) {
@@ -216,11 +218,12 @@ export default function ProfileView({
         intro: project.intro,
         tag: project.tags && project.tags.length > 0 ? project.tags[0] : "",
         ratingFields: project.ratingFields || [],
-        customInputs: project.customInputs || []
+        customInputs: project.customInputs || [],
+        requireTitleField: project.requireTitleField || false
       });
     } else {
       setEditingId(null);
-      setFormData({ name: "", intro: "", tag: filterTag && filterTag !== "全部" ? filterTag : "", ratingFields: [], customInputs: [] });
+      setFormData({ name: "", intro: "", tag: filterTag && filterTag !== "全部" ? filterTag : "", ratingFields: [], customInputs: [], requireTitleField: false });
     }
     setActiveMenuId(null);
     setIsFormOpen(true);
@@ -242,7 +245,8 @@ export default function ProfileView({
           intro: formData.intro,
           tags: formData.tag ? [formData.tag] : [],
           ratingFields: formData.ratingFields,
-          customInputs: formData.customInputs
+          customInputs: formData.customInputs,
+          requireTitleField: formData.requireTitleField
         });
       }
     }
@@ -251,9 +255,7 @@ export default function ProfileView({
 
   const handleDelete = (id: string) => {
     setActiveMenuId(null);
-    if (window.confirm("确定要删除这个档案库吗？")) {
-      if (onDeleteProject) onDeleteProject(id);
-    }
+    setDeleteProjectId(id);
   };
 
   // ====== 核心：构建投资组合持仓列表 ======
@@ -440,14 +442,14 @@ export default function ProfileView({
       <div className="min-h-[100dvh] bg-[#18191c] pb-24 animate-fade-in select-none font-sans w-full flex flex-col items-center">
         <div className="w-full max-w-2xl bg-[#232429] md:rounded-lg overflow-hidden shadow-2xl">
           {/* Top Hero Section */}
-          <div className="relative w-full h-[200px] md:h-[240px] bg-black group overflow-hidden">
+          <div className="relative w-full h-[130px] md:h-[150px] bg-black group overflow-hidden">
             <div 
               className="absolute inset-0 bg-cover bg-center opacity-60 transition-transform duration-1000 group-hover:scale-105"
-              style={{ backgroundImage: 'url(/images/banners/profile_hero.png)' }}
+              style={{ backgroundImage: 'url(/images/banners/profile_hero.webp)' }}
             />
             <div className="absolute inset-0 bg-gradient-to-t from-[#232429] via-[#232429]/60 to-transparent" />
             
-            <div className="absolute inset-0 flex flex-col justify-end p-6 md:p-8 z-10 pb-8">
+            <div className="absolute inset-0 flex flex-col justify-end px-6 py-5 md:px-8 z-10">
               <div className="flex items-center gap-5 mb-3">
                 <div className="w-16 h-16 md:w-20 md:h-20 shrink-0 rounded-full bg-gradient-to-tr from-[#d0bcff] to-[#4cd7f6] p-[2px] shadow-[0_0_20px_rgba(208,188,255,0.3)]">
                   <div className="w-full h-full bg-[#0b1326] rounded-full flex items-center justify-center overflow-hidden bg-cover bg-center">
@@ -490,20 +492,33 @@ export default function ProfileView({
 
   return (
     <div className="min-h-[100dvh] bg-[#18191c] pb-24 animate-fade-in select-none font-sans w-full flex flex-col items-center">
-      
-
+      <ConfirmModal
+        isOpen={!!deleteProjectId}
+        title="删除档案库"
+        message="确定要删除这个档案库吗？包含的记录也将一同被删除，该操作不可恢复。"
+        confirmText="确认删除"
+        cancelText="取消"
+        variant="danger"
+        onConfirm={() => {
+          if (deleteProjectId && onDeleteProject) {
+            onDeleteProject(deleteProjectId);
+          }
+          setDeleteProjectId(null);
+        }}
+        onCancel={() => setDeleteProjectId(null)}
+      />
 
       <div className="w-full max-w-2xl bg-[#232429] md:rounded-lg overflow-hidden shadow-2xl">
         
         {/* Top Hero Section */}
-        <div className="relative w-full h-[200px] md:h-[240px] bg-black group overflow-hidden">
+        <div className="relative w-full h-[130px] md:h-[150px] bg-black group overflow-hidden">
           <div 
             className="absolute inset-0 bg-cover bg-center opacity-60 transition-transform duration-1000 group-hover:scale-105"
-            style={{ backgroundImage: 'url(/images/banners/profile_hero.png)' }}
+            style={{ backgroundImage: 'url(/images/banners/profile_hero.webp)' }}
           />
           <div className="absolute inset-0 bg-gradient-to-t from-[#232429] via-[#232429]/60 to-transparent" />
           
-          <div className="absolute inset-0 flex flex-col justify-end p-6 md:p-8 z-10 pb-8">
+          <div className="absolute inset-0 flex flex-col justify-end px-6 py-5 md:px-8 z-10">
             <div className="flex items-center gap-5 mb-3">
               {/* Avatar */}
               <div 
@@ -1038,6 +1053,23 @@ export default function ProfileView({
                     ))}
                   </div>
                 )}
+              </div>
+
+              {/* 记录标题开关 */}
+              <div className="flex items-center justify-between pt-2 pb-1">
+                <div className="flex flex-col">
+                  <label className="text-[13px] font-medium text-[#E0E0E0]">启用记录标题输入</label>
+                  <span className="text-[11px] text-[#707070] mt-0.5">在添加记录时，是否提供专门的标题输入框</span>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    className="sr-only peer" 
+                    checked={formData.requireTitleField}
+                    onChange={(e) => setFormData({...formData, requireTitleField: e.target.checked})}
+                  />
+                  <div className="w-11 h-6 bg-[#2A2A2E] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-[#A0A0A0] peer-checked:after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#F0F0F0]"></div>
+                </label>
               </div>
 
               {/* 操作按钮 */}

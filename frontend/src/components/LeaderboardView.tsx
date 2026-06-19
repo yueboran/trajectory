@@ -4,6 +4,7 @@ import { Project } from "../types";
 import { getSelectableTags } from "../data/treeData";
 import ArchiveDetailView from "./ArchiveDetailView";
 import CategoryCascader from "./CategoryCascader";
+import ConfirmModal from "./ConfirmModal";
 interface LeaderboardViewProps {
   projects?: Project[];
   initialFilter?: string;
@@ -31,7 +32,7 @@ interface LeaderboardViewProps {
 export default function LeaderboardView({ projects, initialFilter = "全部", onSelectProject, onAddProject, onUpdateProject, onDeleteProject, onBookmarkToggle, onToggleRecordBookmark, onNavigateToSubmit, currentUser, onNavigateToAuth }: LeaderboardViewProps) {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [formData, setFormData] = useState<{name: string, intro: string, tag: string, ratingFields: string[], customInputs: { name: string; type: 'singleLine' | 'multiLine' }[]}>({ name: "", intro: "", tag: "", ratingFields: [], customInputs: [] });
+  const [formData, setFormData] = useState<{name: string, intro: string, tag: string, ratingFields: string[], customInputs: { name: string; type: 'singleLine' | 'multiLine' }[], requireTitleField: boolean}>({ name: "", intro: "", tag: "", ratingFields: [], customInputs: [], requireTitleField: false });
   const [ratingInput, setRatingInput] = useState("");
   const [customInputName, setCustomInputName] = useState("");
   const [customInputType, setCustomInputType] = useState<'singleLine' | 'multiLine'>('singleLine');
@@ -41,6 +42,7 @@ export default function LeaderboardView({ projects, initialFilter = "全部", on
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
   // 顶部三级筛选状态
   const [filterTag, setFilterTag] = useState<string>(initialFilter);
+  const [deleteProjectId, setDeleteProjectId] = useState<string | null>(null);
   
   React.useEffect(() => {
     setFilterTag(initialFilter);
@@ -65,7 +67,8 @@ export default function LeaderboardView({ projects, initialFilter = "全部", on
         intro: project.intro,
         tag: project.tags && project.tags.length > 0 ? project.tags[0] : selectableTags[0]?.value || "",
         ratingFields: project.ratingFields || [],
-        customInputs: project.customInputs || []
+        customInputs: project.customInputs || [],
+        requireTitleField: project.requireTitleField || false
       });
     } else {
       setEditingId(null);
@@ -76,7 +79,7 @@ export default function LeaderboardView({ projects, initialFilter = "全部", on
           initialTag = matchedTag.value;
         }
       }
-      setFormData({ name: "", intro: "", tag: initialTag, ratingFields: [], customInputs: [] });
+      setFormData({ name: "", intro: "", tag: initialTag, ratingFields: [], customInputs: [], requireTitleField: false });
     }
     setActiveMenuId(null);
     setIsFormOpen(true);
@@ -98,7 +101,8 @@ export default function LeaderboardView({ projects, initialFilter = "全部", on
           intro: formData.intro,
           tags: [formData.tag],
           ratingFields: formData.ratingFields,
-          customInputs: formData.customInputs
+          customInputs: formData.customInputs,
+          requireTitleField: formData.requireTitleField
         });
       }
     } else {
@@ -111,6 +115,7 @@ export default function LeaderboardView({ projects, initialFilter = "全部", on
           tags: [formData.tag],
           ratingFields: formData.ratingFields,
           customInputs: formData.customInputs,
+          requireTitleField: formData.requireTitleField,
           icon: "folder",
           auroraScore: 80,
           radar: { concept: 80, research: 80, planning: 80, extension: 80, evaluation: 80 },
@@ -128,9 +133,7 @@ export default function LeaderboardView({ projects, initialFilter = "全部", on
 
   const handleDelete = (id: string) => {
     setActiveMenuId(null);
-    if (window.confirm("确定要删除这个档案库吗？")) {
-      if (onDeleteProject) onDeleteProject(id);
-    }
+    setDeleteProjectId(id);
   };
 
   // 将标签拆分为路径
@@ -155,7 +158,7 @@ export default function LeaderboardView({ projects, initialFilter = "全部", on
           <div className="relative w-full h-[200px] md:h-[240px] bg-black group overflow-hidden">
             <div 
               className="absolute inset-0 bg-cover bg-center opacity-60 transition-transform duration-1000 group-hover:scale-105"
-              style={{ backgroundImage: 'url(/images/banners/profile_hero.png)' }}
+              style={{ backgroundImage: 'url(/images/banners/profile_hero.webp)' }}
             />
             <div className="absolute inset-0 bg-gradient-to-t from-[#232429] via-[#232429]/60 to-transparent" />
             
@@ -215,6 +218,21 @@ export default function LeaderboardView({ projects, initialFilter = "全部", on
 
   return (
     <div className="min-h-[100dvh] bg-[#141416] pb-24 animate-fade-in select-none font-sans w-full">
+      <ConfirmModal
+        isOpen={!!deleteProjectId}
+        title="删除档案库"
+        message="确定要删除这个档案库吗？包含的记录也将一同被删除，该操作不可恢复。"
+        confirmText="确认删除"
+        cancelText="取消"
+        variant="danger"
+        onConfirm={() => {
+          if (deleteProjectId && onDeleteProject) {
+            onDeleteProject(deleteProjectId);
+          }
+          setDeleteProjectId(null);
+        }}
+        onCancel={() => setDeleteProjectId(null)}
+      />
       
       {/* Hero 区域 — 柔和、克制、信息明确 */}
       <div className="relative w-full min-h-[160px] pt-14 pb-5 overflow-hidden">
@@ -222,7 +240,7 @@ export default function LeaderboardView({ projects, initialFilter = "全部", on
         <div
           className="absolute inset-0 bg-cover bg-center scale-105"
           style={{
-            backgroundImage: 'url(/images/mocks/hot_carousel_1.png)',
+            backgroundImage: 'url(/images/mocks/hot_carousel_1.webp)',
             opacity: 0.35,
             filter: "brightness(0.7) saturate(0.8)",
           }}
@@ -537,6 +555,23 @@ export default function LeaderboardView({ projects, initialFilter = "全部", on
                     ))}
                   </div>
                 )}
+              </div>
+
+              {/* 记录标题开关 */}
+              <div className="flex items-center justify-between pt-2 pb-1">
+                <div className="flex flex-col">
+                  <label className="text-[13px] font-medium text-[#E0E0E0]">启用记录标题输入</label>
+                  <span className="text-[11px] text-[#707070] mt-0.5">在添加记录时，是否提供专门的标题输入框</span>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    className="sr-only peer" 
+                    checked={formData.requireTitleField}
+                    onChange={(e) => setFormData({...formData, requireTitleField: e.target.checked})}
+                  />
+                  <div className="w-11 h-6 bg-[#2A2A2E] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-[#A0A0A0] peer-checked:after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#F0F0F0]"></div>
+                </label>
               </div>
 
               {/* 操作按钮 */}

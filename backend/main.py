@@ -2,6 +2,8 @@ from fastapi import FastAPI, Depends, HTTPException, Query, UploadFile, File
 from fastapi.staticfiles import StaticFiles
 import shutil
 import os
+import uuid
+from PIL import Image
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from typing import List, Optional
@@ -15,6 +17,7 @@ models.Base.metadata.create_all(bind=engine)
 app = FastAPI(title="璀璨星图 (迹向) - Backend API", description="由 FastAPI 提供的高性能接口", version="1.0.0")
 
 os.makedirs("data/avatars", exist_ok=True)
+os.makedirs("data/images/uploads", exist_ok=True)
 app.mount("/api/static", StaticFiles(directory="data"), name="static")
 
 # 配置CORS跨域请求
@@ -164,18 +167,34 @@ def read_users_me(current_user: models.User = Depends(get_current_user)):
 
 @app.post("/api/auth/me/avatar", response_model=schemas.ApiResponse)
 async def upload_avatar(file: UploadFile = File(...), current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
-    file_ext = file.filename.split('.')[-1]
-    filename = f"{current_user.id}.{file_ext}"
+    filename = f"{current_user.id}.webp"
     file_path = f"data/avatars/{filename}"
     
-    with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+    try:
+        with Image.open(file.file) as img:
+            img.save(file_path, 'webp', quality=85)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail="图片格式不支持或损坏")
         
     avatar_url = f"/api/static/avatars/{filename}"
     current_user.avatarUrl = avatar_url
     db.commit()
     
     return make_response({"avatarUrl": avatar_url})
+
+@app.post("/api/upload/image", response_model=schemas.ApiResponse)
+async def upload_image(file: UploadFile = File(...), current_user: models.User = Depends(get_current_user)):
+    filename = f"{uuid.uuid4().hex}.webp"
+    file_path = f"data/images/uploads/{filename}"
+    
+    try:
+        with Image.open(file.file) as img:
+            img.save(file_path, 'webp', quality=85)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail="图片格式不支持或损坏")
+        
+    url = f"/api/static/images/uploads/{filename}"
+    return make_response({"url": url})
 
 @app.get("/api/projects", response_model=schemas.ApiResponse)
 def read_projects(

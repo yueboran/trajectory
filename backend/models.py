@@ -36,6 +36,7 @@ class Project(Base):
     ratingFields = Column(JSON, nullable=True) # List[str]
     customInputs = Column(JSON, nullable=True) # List[Dict]
     tags = Column(JSON) # List[str]
+    requireTitleField = Column(Boolean, default=False)
     commentsCount = Column(Integer, default=0)
     timeAgo = Column(String, default=get_time_ago)
     hotness = Column(String, default="0k")

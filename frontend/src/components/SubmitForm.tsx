@@ -29,6 +29,7 @@ export default function SubmitForm({ onSuccess, onCancel, initialTag, isLocked, 
   const [selectedTag, setSelectedTag] = useState(initialTag || initialRecord?.category || initialDraft?.tag || selectableTags[0]?.value || "1. 健康与精力 / 身体健康 / 运动记录");
   const [ratings, setRatings] = useState<Record<string, string>>(initialRecord?.ratings ? Object.fromEntries(Object.entries(initialRecord.ratings).map(([k, v]) => [k, v.toString()])) : (initialDraft?.ratings || {}));
   const [customData, setCustomData] = useState<Record<string, string>>(initialRecord?.customData || initialDraft?.customData || {});
+  const [titleInput, setTitleInput] = useState(initialRecord?.title || initialDraft?.title || "");
   const editorRef = useRef<TiptapEditorRef>(null);
 
   React.useEffect(() => {
@@ -49,7 +50,7 @@ export default function SubmitForm({ onSuccess, onCancel, initialTag, isLocked, 
       if (empty !== false) return null;
       const html = editorRef.current?.getHTML() || "";
       const text = editorRef.current?.getText() || "";
-      const title = text.trim().slice(0, 20) || "草稿记录";
+      const title = targetProject?.requireTitleField ? titleInput : (text.trim().slice(0, 20) || "草稿记录");
       const draft: DraftRecord = {
         id: initialDraft?.id || "draft-" + Date.now(),
         title,
@@ -87,7 +88,7 @@ export default function SubmitForm({ onSuccess, onCancel, initialTag, isLocked, 
 
     setErrorMessage("");
 
-    const title = text.trim().slice(0, 20) || "生活点滴";
+    const title = targetProject?.requireTitleField ? titleInput : (text.trim().slice(0, 20) || "生活点滴");
     const plainDescription = text.replace(/\n+/g, " ");
 
     const parsedRatings: Record<string, number> = {};
@@ -281,6 +282,20 @@ export default function SubmitForm({ onSuccess, onCancel, initialTag, isLocked, 
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* 可选标题输入区 */}
+        {targetProject?.requireTitleField && (
+          <div className="relative z-10 p-5 bg-[#1a1b1e]/50 backdrop-blur-sm border border-amber-500/10 rounded-2xl shadow-inner transition-all hover:border-amber-500/20 mt-4">
+            <label className="block text-[13px] font-bold text-[#E0E0E0] mb-3 tracking-wide pl-1">标题</label>
+            <input
+              type="text"
+              value={titleInput}
+              onChange={(e) => setTitleInput(e.target.value)}
+              placeholder="请输入标题..."
+              className="w-full bg-[#141416] border border-[#2A2A2E] rounded-xl px-4 py-3 text-[15px] font-semibold text-[#E0E0E0] placeholder-[#404040] focus:outline-none focus:border-amber-500/50 transition-colors"
+            />
           </div>
         )}
 

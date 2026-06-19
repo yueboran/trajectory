@@ -102,6 +102,7 @@ class ProjectBase(BaseModel):
     ratingFields: Optional[List[str]] = None
     customInputs: Optional[List[Dict[str, str]]] = None
     tags: List[str] = []
+    requireTitleField: Optional[bool] = False
     
     painPointCount: Optional[int] = 0
     inspirationSource: Optional[str] = None
@@ -122,6 +123,7 @@ class ProjectUpdate(BaseModel):
     tags: Optional[List[str]] = None
     ratingFields: Optional[List[str]] = None
     customInputs: Optional[List[Dict[str, str]]] = None
+    requireTitleField: Optional[bool] = None
 
 class Project(ProjectBase):
     id: str

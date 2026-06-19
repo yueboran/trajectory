@@ -75,6 +75,7 @@ export interface Project {
   };
   ratingFields?: string[];
   customInputs?: { name: string; type: 'singleLine' | 'multiLine' }[];
+  requireTitleField?: boolean;
 
   tags: string[];
   commentsCount: number;

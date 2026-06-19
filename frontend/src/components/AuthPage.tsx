@@ -103,143 +103,127 @@ export default function AuthPage({ onBack }: AuthPageProps) {
   };
 
   return (
-    <div className="absolute inset-0 z-50 flex bg-white animate-fade-in h-[100dvh] w-full overflow-hidden">
-      <div 
-        className="hidden lg:block lg:w-[45%] h-full bg-cover bg-center relative"
-        style={{ backgroundImage: 'url(/api/static/images/auth/auth_split_banner.png)' }}
+    <div className="absolute inset-0 z-50 flex items-center justify-center bg-gray-50 animate-fade-in h-[100dvh] w-full overflow-y-auto">
+      <button 
+        onClick={onBack}
+        className="absolute top-6 left-6 flex items-center justify-center w-10 h-10 rounded-full bg-white shadow-sm border border-gray-200 hover:bg-gray-100 text-gray-800 transition-colors z-10"
       >
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/20" />
-        <button 
-          onClick={onBack}
-          className="absolute top-6 left-6 flex items-center justify-center w-10 h-10 rounded-full bg-black/40 hover:bg-black/60 text-white backdrop-blur-md transition-colors border border-white/10"
-        >
-          <ArrowLeft className="w-5 h-5" />
-        </button>
-      </div>
+        <ArrowLeft className="w-5 h-5" />
+      </button>
 
-      <div className="w-full lg:w-[55%] h-full flex flex-col relative overflow-y-auto bg-white">
-        <button 
-          onClick={onBack}
-          className="lg:hidden absolute top-4 left-4 flex items-center justify-center w-10 h-10 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-800 transition-colors"
-        >
-          <ArrowLeft className="w-5 h-5" />
-        </button>
+      <div className="w-full max-w-[420px] px-6 py-12 flex flex-col items-center justify-center relative bg-white sm:rounded-2xl sm:shadow-xl sm:border border-gray-100 mx-4">
+        <div className="mb-10 flex flex-col items-center">
+          <h1 className="font-display text-4xl sm:text-5xl font-black tracking-tighter text-gray-900 mb-1 select-none">
+            <span className="text-[#e50914]">迹</span>向
+          </h1>
+          <div className="h-1 w-full bg-[#e50914]" />
+        </div>
 
-        <div className="flex-1 flex flex-col items-center justify-center px-8 sm:px-16 py-12">
-          
-          <div className="mb-10 flex flex-col items-center">
-            <h1 className="font-display text-4xl sm:text-5xl font-black tracking-tighter text-gray-900 mb-1 select-none">
-              <span className="text-[#e50914]">迹</span>向
-            </h1>
-            <div className="h-1 w-full bg-[#e50914]" />
-          </div>
+        <div className="w-full">
+          <h2 className="text-2xl font-bold text-gray-900 mb-6 font-sans text-center">
+            {isLogin ? "欢迎回来" : "创建您的账号"}
+          </h2>
 
-          <div className="w-full max-w-[360px]">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6 font-sans text-center">
-              {isLogin ? "欢迎回来" : "创建您的账号"}
-            </h2>
+          {errorMsg && (
+            <div className="mb-4 p-3 bg-red-50 text-red-600 text-sm rounded border border-red-100 text-center">
+              {errorMsg}
+            </div>
+          )}
 
-            {errorMsg && (
-              <div className="mb-4 p-3 bg-red-50 text-red-600 text-sm rounded border border-red-100 text-center">
-                {errorMsg}
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {!isLogin && (
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">昵称</label>
+                <input
+                  type="text"
+                  required
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-black font-medium focus:outline-none focus:ring-2 focus:ring-[#e50914]/50 focus:border-[#e50914] transition-colors"
+                />
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {!isLogin && (
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-1">昵称</label>
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-1">邮箱</label>
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-black font-medium focus:outline-none focus:ring-2 focus:ring-[#e50914]/50 focus:border-[#e50914] transition-colors"
+              />
+            </div>
+
+            {!isLogin && (
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">验证码</label>
+                <div className="flex gap-2">
                   <input
                     type="text"
                     required
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#e50914]/50 focus:border-[#e50914] transition-colors"
+                    value={verificationCode}
+                    onChange={(e) => setVerificationCode(e.target.value)}
+                    className="flex-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-black font-medium focus:outline-none focus:ring-2 focus:ring-[#e50914]/50 focus:border-[#e50914] transition-colors"
                   />
+                  <button
+                    type="button"
+                    disabled={countdown > 0}
+                    onClick={handleSendCode}
+                    className="px-4 py-3 bg-gray-100 text-gray-700 text-sm font-bold rounded-lg border border-gray-200 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors min-w-[100px]"
+                  >
+                    {countdown > 0 ? `${countdown}s 后重发` : "获取验证码"}
+                  </button>
                 </div>
-              )}
-
-              <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1">邮箱</label>
-                <input
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#e50914]/50 focus:border-[#e50914] transition-colors"
-                />
               </div>
+            )}
 
-              {!isLogin && (
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-1">验证码</label>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      required
-                      value={verificationCode}
-                      onChange={(e) => setVerificationCode(e.target.value)}
-                      className="flex-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#e50914]/50 focus:border-[#e50914] transition-colors"
-                    />
-                    <button
-                      type="button"
-                      disabled={countdown > 0}
-                      onClick={handleSendCode}
-                      className="px-4 py-3 bg-gray-100 text-gray-700 text-sm font-bold rounded-lg border border-gray-200 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors min-w-[100px]"
-                    >
-                      {countdown > 0 ? `${countdown}s 后重发` : "获取验证码"}
-                    </button>
-                  </div>
-                </div>
-              )}
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-1">密码</label>
+              <input
+                type="password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-black font-medium focus:outline-none focus:ring-2 focus:ring-[#e50914]/50 focus:border-[#e50914] transition-colors"
+              />
+            </div>
 
+            {!isLogin && (
               <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1">密码</label>
+                <label className="block text-sm font-bold text-gray-700 mb-1">确认密码</label>
                 <input
                   type="password"
                   required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#e50914]/50 focus:border-[#e50914] transition-colors"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-black font-medium focus:outline-none focus:ring-2 focus:ring-[#e50914]/50 focus:border-[#e50914] transition-colors"
                 />
               </div>
+            )}
 
-              {!isLogin && (
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-1">确认密码</label>
-                  <input
-                    type="password"
-                    required
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#e50914]/50 focus:border-[#e50914] transition-colors"
-                  />
-                </div>
-              )}
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="w-full py-3.5 bg-[#e50914] hover:bg-[#d40812] text-white font-bold rounded-lg transition-colors mt-2 disabled:opacity-70 disabled:cursor-not-allowed shadow-md shadow-[#e50914]/20"
+            >
+              {isLoading ? "请稍候..." : (isLogin ? "登录" : "注册")}
+            </button>
+          </form>
 
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="w-full py-3.5 bg-[#e50914] hover:bg-[#d40812] text-white font-bold rounded-lg transition-colors mt-2 disabled:opacity-70 disabled:cursor-not-allowed shadow-md shadow-[#e50914]/20"
+          <div className="mt-6 text-center">
+            <p className="text-[13px] font-semibold text-gray-500">
+              {isLogin ? "还没有账号？" : "已经有账号了？"}{" "}
+              <button 
+                onClick={() => {
+                  setIsLogin(!isLogin);
+                  setErrorMsg("");
+                }}
+                className="text-[#e50914] hover:underline"
               >
-                {isLoading ? "请稍候..." : (isLogin ? "登录" : "注册")}
+                {isLogin ? "去注册" : "去登录"}
               </button>
-            </form>
-
-            <div className="mt-6 text-center">
-              <p className="text-[13px] font-semibold text-gray-500">
-                {isLogin ? "还没有账号？" : "已经有账号了？"}{" "}
-                <button 
-                  onClick={() => {
-                    setIsLogin(!isLogin);
-                    setErrorMsg("");
-                  }}
-                  className="text-[#e50914] hover:underline"
-                >
-                  {isLogin ? "去注册" : "去登录"}
-                </button>
-              </p>
-            </div>
+            </p>
           </div>
         </div>
       </div>

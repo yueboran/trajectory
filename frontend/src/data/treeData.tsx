@@ -13,98 +13,98 @@ export type TreeNode = {
 
 export const treeData: TreeNode[] = [
   {
-    id: "1", label: "健康与精力", color: "#4cd7f6", image: "/api/static/images/banners/banner_1.png",
+    id: "1", label: "健康与精力", color: "#4cd7f6", image: "/api/static/images/banners/banner_1.webp",
     icon: <Activity className="w-5 h-5" />,
     children: [
       {
         id: "1-1", label: "身体健康", color: "#4cd7f6",
         children: [
-          { id: "1-1-1", label: "运动记录", color: "#4cd7f6", image: "/api/static/images/cards/1-1-1.png", summary: "力量训练、有氧、柔韧性拉伸" },
-          { id: "1-1-2", label: "饮食管理", color: "#4cd7f6", image: "/api/static/images/cards/1-1-2.png", summary: "三餐记录、饮水量、营养素摄入" },
-          { id: "1-1-3", label: "作息管理", color: "#4cd7f6", image: "/api/static/images/cards/1-1-3.png", summary: "睡眠时长监控、入睡/起床时间" },
-          { id: "1-1-4", label: "医疗健康", color: "#4cd7f6", image: "/api/static/images/cards/1-1-4.png", summary: "体检报告、病历档案、用药记录" },
+          { id: "1-1-1", label: "运动记录", color: "#4cd7f6", image: "/api/static/images/cards/1-1-1.webp", summary: "力量训练、有氧、柔韧性拉伸" },
+          { id: "1-1-2", label: "饮食管理", color: "#4cd7f6", image: "/api/static/images/cards/1-1-2.webp", summary: "三餐记录、饮水量、营养素摄入" },
+          { id: "1-1-3", label: "作息管理", color: "#4cd7f6", image: "/api/static/images/cards/1-1-3.webp", summary: "睡眠时长监控、入睡/起床时间" },
+          { id: "1-1-4", label: "医疗健康", color: "#4cd7f6", image: "/api/static/images/cards/1-1-4.webp", summary: "体检报告、病历档案、用药记录" },
         ]
       },
       {
         id: "1-2", label: "心理健康", color: "#4cd7f6",
         children: [
-          { id: "1-2-1", label: "情绪与压力", color: "#4cd7f6", image: "/api/static/images/cards/1-2-1.png", summary: "情绪波动追踪、感恩日记" },
+          { id: "1-2-1", label: "情绪与压力", color: "#4cd7f6", image: "/api/static/images/cards/1-2-1.webp", summary: "情绪波动追踪、感恩日记" },
         ]
       }
     ]
   },
   {
-    id: "2", label: "理论与认知", color: "#10b981", image: "/api/static/images/banners/banner_2.png",
+    id: "2", label: "理论与认知", color: "#10b981", image: "/api/static/images/banners/banner_2.webp",
     icon: <Brain className="w-5 h-5" />,
     children: [
       {
         id: "2-0", label: "信息收集", color: "#d0bcff",
         children: [
-          { id: "2-0-1", label: "个人书单", color: "#d0bcff", image: "/api/static/images/cards/2-0-1.png", summary: "书名+标签+介绍" },
-          { id: "2-0-2", label: "网络资源", color: "#d0bcff", image: "/api/static/images/cards/2-0-2.png", summary: "可以是链接等形式" },
-          { id: "2-0-3", label: "随手记", color: "#d0bcff", image: "/api/static/images/cards/2-0-3.png", summary: "可以是图片或文字节选" },
+          { id: "2-0-1", label: "个人书单", color: "#d0bcff", image: "/api/static/images/cards/2-0-1.webp", summary: "书名+标签+介绍" },
+          { id: "2-0-2", label: "网络资源", color: "#d0bcff", image: "/api/static/images/cards/2-0-2.webp", summary: "可以是链接等形式" },
+          { id: "2-0-3", label: "随手记", color: "#d0bcff", image: "/api/static/images/cards/2-0-3.webp", summary: "可以是图片或文字节选" },
         ]
       },
       {
         id: "2-1", label: "思考与重构", color: "#d0bcff",
         children: [
-          { id: "2-1-1", label: "个人笔记", color: "#d0bcff", image: "/api/static/images/cards/2-1-1.png", summary: "阅读与学习的记录与总结" },
-          { id: "2-1-2", label: "思维导图", color: "#d0bcff", image: "/api/static/images/cards/2-1-2.png", summary: "知识体系与框架的结构化大纲" },
-          { id: "2-1-3", label: "问题与思考", color: "#d0bcff", image: "/api/static/images/cards/2-1-3.png", summary: "未解之谜、待研究的子课题与反思" },
+          { id: "2-1-1", label: "个人笔记", color: "#d0bcff", image: "/api/static/images/cards/2-1-1.webp", summary: "阅读与学习的记录与总结" },
+          { id: "2-1-2", label: "思维导图", color: "#d0bcff", image: "/api/static/images/cards/2-1-2.webp", summary: "知识体系与框架的结构化大纲" },
+          { id: "2-1-3", label: "问题与思考", color: "#d0bcff", image: "/api/static/images/cards/2-1-3.webp", summary: "未解之谜、待研究的子课题与反思" },
         ]
       },
       {
         id: "2-2", label: "知识输出", color: "#d0bcff",
         children: [
-          { id: "2-2-1", label: "总结与复盘", color: "#d0bcff", image: "/api/static/images/cards/2-2-1.png", summary: "阶段总结、认知纠偏与经验反思" },
-          { id: "2-2-2", label: "个人随笔", color: "#d0bcff", image: "/api/static/images/cards/2-2-2.png", summary: "生活感悟、自由创作与杂谈" },
+          { id: "2-2-1", label: "总结与复盘", color: "#d0bcff", image: "/api/static/images/cards/2-2-1.webp", summary: "阶段总结、认知纠偏与经验反思" },
+          { id: "2-2-2", label: "个人随笔", color: "#d0bcff", image: "/api/static/images/cards/2-2-2.webp", summary: "生活感悟、自由创作与杂谈" },
         ]
       }
     ]
   },
   {
-    id: "3", label: "实践与行动", color: "#8b5cf6", image: "/api/static/images/banners/banner_3.png",
+    id: "3", label: "实践与行动", color: "#8b5cf6", image: "/api/static/images/banners/banner_3.webp",
     icon: <Rocket className="w-5 h-5" />,
     children: [
       {
         id: "3-0", label: "实践准备", color: "#34d399",
         children: [
-          { id: "3-0-1", label: "灵感与想法", color: "#34d399", image: "/api/static/images/cards/3-0-1.png", summary: "想尝试的事情、初步的项目雏形、待办池" },
-          { id: "3-0-2", label: "计划与分析", color: "#34d399", image: "/api/static/images/cards/3-0-2.png", summary: "链接到【2.2】，记录指导行动的底层逻辑或方法论" },
+          { id: "3-0-1", label: "灵感与想法", color: "#34d399", image: "/api/static/images/cards/3-0-1.webp", summary: "想尝试的事情、初步的项目雏形、待办池" },
+          { id: "3-0-2", label: "计划与分析", color: "#34d399", image: "/api/static/images/cards/3-0-2.webp", summary: "链接到【2.2】，记录指导行动的底层逻辑或方法论" },
         ]
       },
       {
         id: "3-2", label: "执行中", color: "#34d399",
         children: [
-          { id: "3-2-1", label: "项目看板", color: "#34d399", image: "/api/static/images/cards/3-2-1.png", summary: "当前正在进行、已挂起、已完成的任务卡片" },
-          { id: "3-2-2", label: "进度记录", color: "#34d399", image: "/api/static/images/cards/3-2-2.png", summary: "每日/每周执行记录、打卡追踪、遇到的卡点与阻碍" },
+          { id: "3-2-1", label: "项目看板", color: "#34d399", image: "/api/static/images/cards/3-2-1.webp", summary: "当前正在进行、已挂起、已完成的任务卡片" },
+          { id: "3-2-2", label: "进度记录", color: "#34d399", image: "/api/static/images/cards/3-2-2.webp", summary: "每日/每周执行记录、打卡追踪、遇到的卡点与阻碍" },
         ]
       },
       {
         id: "3-3", label: "总结与反思", color: "#34d399",
         children: [
-          { id: "3-3-1", label: "个人成果", color: "#34d399", image: "/api/static/images/cards/3-3-1.png", summary: "最终交付物、作品集、达成的数据指标展示" },
-          { id: "3-3-3", label: "感悟与反思", color: "#34d399", image: "/api/static/images/cards/3-3-3.png", summary: "与理论支持对照校验，记录踩坑经验，提取SOP" },
+          { id: "3-3-1", label: "个人成果", color: "#34d399", image: "/api/static/images/cards/3-3-1.webp", summary: "最终交付物、作品集、达成的数据指标展示" },
+          { id: "3-3-3", label: "感悟与反思", color: "#34d399", image: "/api/static/images/cards/3-3-3.webp", summary: "与理论支持对照校验，记录踩坑经验，提取SOP" },
         ]
       }
     ]
   },
   {
-    id: "4", label: "财富与生活", color: "#f59e0b", image: "/api/static/images/banners/banner_4.png",
+    id: "4", label: "财富与生活", color: "#f59e0b", image: "/api/static/images/banners/banner_4.webp",
     icon: <DollarSign className="w-5 h-5" />,
     children: [
       {
         id: "4-1", label: "财富", color: "#f59e0b",
         children: [
-          { id: "4-1-1", label: "个人财富", color: "#f59e0b", image: "/api/static/images/cards/4-1-1.png", summary: "主业薪资记录、副业探索与试错日志、被动收入管道建设" },
-          { id: "4-1-2", label: "社会关系", color: "#f59e0b", image: "/api/static/images/cards/4-1-2.png", summary: "新结识的有趣/有价值的人脉档案、潜在合作机会、贵人记录" },
+          { id: "4-1-1", label: "个人财富", color: "#f59e0b", image: "/api/static/images/cards/4-1-1.webp", summary: "主业薪资记录、副业探索与试错日志、被动收入管道建设" },
+          { id: "4-1-2", label: "社会关系", color: "#f59e0b", image: "/api/static/images/cards/4-1-2.webp", summary: "新结识的有趣/有价值的人脉档案、潜在合作机会、贵人记录" },
         ]
       },
       {
         id: "4-2", label: "生活", color: "#f59e0b",
         children: [
-          { id: "4-2-1", label: "个人爱好", color: "#f59e0b", image: "/api/static/images/cards/4-2-1.png", summary: "无功利性的纯粹热爱：如摄影作品、烘焙配方改良记录" },
-          { id: "4-2-2", label: "个人日记", color: "#f59e0b", image: "/api/static/images/cards/4-2-2.png", summary: "日常生活中发生的一些值得记录的微小瞬间" },
+          { id: "4-2-1", label: "个人爱好", color: "#f59e0b", image: "/api/static/images/cards/4-2-1.webp", summary: "无功利性的纯粹热爱：如摄影作品、烘焙配方改良记录" },
+          { id: "4-2-2", label: "个人日记", color: "#f59e0b", image: "/api/static/images/cards/4-2-2.webp", summary: "日常生活中发生的一些值得记录的微小瞬间" },
         ]
       }
     ]
