@@ -62,6 +62,7 @@ def create_project(db: Session, project: schemas.ProjectCreate, user_id: str):
         inspirationSource=project.inspirationSource,
         inspirationAuthor=project.inspirationAuthor,
         inspirationAuthorRole=project.inspirationAuthorRole,
+        requireTitleField=project.requireTitleField,
         coCreationTimeline=project.coCreationTimeline,
         commentsCount=0,
         likes=0,

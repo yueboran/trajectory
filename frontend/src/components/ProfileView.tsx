@@ -889,7 +889,7 @@ export default function ProfileView({
       {isFormOpen && (
         <div className="fixed inset-0 z-[100] flex items-end md:items-center justify-center">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={handleCloseForm} />
-          <div className="relative w-full max-w-md bg-[#1A1A1E] border border-[#2A2A2E] shadow-2xl rounded-t-2xl md:rounded-2xl p-6 animate-fade-in z-10">
+          <div className="relative w-full max-w-md bg-[#1A1A1E] border border-[#2A2A2E] shadow-2xl rounded-t-2xl md:rounded-2xl p-6 animate-fade-in z-10 max-h-[90dvh] overflow-y-auto">
             
             {/* 手机端拖拽指示条 */}
             <div className="md:hidden w-10 h-1 bg-[#383838] rounded-full mx-auto mb-5" />

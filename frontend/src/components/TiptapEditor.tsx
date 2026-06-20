@@ -69,7 +69,7 @@ const handleImageUpload = (editor: any) => {
         const token = localStorage.getItem("stars:token");
         const res = await fetch("/api/upload/image", {
           method: "POST",
-          headers: { "Authorization": Bearer  },
+          headers: { "Authorization": `Bearer ${token}` },
           body: formData
         });
         if (res.ok) {
