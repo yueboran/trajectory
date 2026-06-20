@@ -17,7 +17,7 @@ import LeaderboardView from "./components/LeaderboardView";
 import StarMapGraph from "./components/StarMapGraph";
 import AuthPage from "./components/AuthPage";
 import ConfirmModal from "./components/ConfirmModal";
-import { Project } from "./types";
+import { Project, Comment, DraftRecord } from "./types";
 
 const MOCK_PROJECTS: Project[] = [
   {
@@ -50,7 +50,7 @@ const MOCK_PROJECTS: Project[] = [
         timeAgo: "5小时前",
         title: "商业模式图谱已更新，添加了基于 Token 消耗量的阶梯定价模型草案。",
         content: "商业模式图谱已更新，添加了基于 Token 消耗量的阶梯定价模型草案。",
-        imageUrl: "/images/mocks/hot_carousel_1.png",
+        imageUrl: "/images/mocks/hot_carousel_1.webp",
         type: "expansion" as const
       },
       {
@@ -174,13 +174,83 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<string>("home");
   const [submitInitialTag, setSubmitInitialTag] = useState<string | null>(null);
   const [submitTargetProjectId, setSubmitTargetProjectId] = useState<string | null>(null);
+  const [submitInitialRecord, setSubmitInitialRecord] = useState<Comment | null>(null);
+  const [submitInitialDraft, setSubmitInitialDraft] = useState<DraftRecord | null>(null);
   const [submitRatingFields, setSubmitRatingFields] = useState<string[]>([]);
+  const [submitCustomInputs, setSubmitCustomInputs] = useState<{ name: string; type: 'singleLine' | 'multiLine' }[]>([]);
   const [draftModalOpen, setDraftModalOpen] = useState(false);
   const [pendingTab, setPendingTab] = useState<string | null>(null);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+
+  const checkAuth = async () => {
+    const token = localStorage.getItem("stars:token");
+    if (token) {
+      try {
+        const response = await fetch("/api/auth/me", {
+          headers: { "Authorization": `Bearer ${token}` }
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setCurrentUser(data.data || data);
+        } else {
+          localStorage.removeItem("stars:token");
+          setCurrentUser(null);
+        }
+      } catch (err) {
+        console.error("Failed to check auth", err);
+      }
+    } else {
+      setCurrentUser(null);
+    }
+  };
+
+  useEffect(() => {
+    checkAuth();
+  }, [activeTab]);
+
+  const requireAuth = (action: () => void) => {
+    if (currentUser) {
+      action();
+    } else {
+      setShowNotification("此操作需要登录，正在为您跳转...");
+      setTimeout(() => {
+        setShowNotification("");
+        setActiveTab("auth");
+      }, 1500);
+    }
+  };
+
+  const [drafts, setDrafts] = useState<DraftRecord[]>(() => {
+    const saved = localStorage.getItem("stars:drafts");
+    return saved ? JSON.parse(saved) : [];
+  });
+  useEffect(() => {
+    localStorage.setItem("stars:drafts", JSON.stringify(drafts));
+  }, [drafts]);
+
+  const handleSaveDraft = () => {
+    requireAuth(() => {
+      if ((window as any).saveCurrentDraft) {
+        const draft = (window as any).saveCurrentDraft();
+        if (draft) {
+          setDrafts(prev => {
+            const newDrafts = prev.filter(d => d.id !== draft.id);
+            return [draft, ...newDrafts];
+          });
+          triggerNotification("已成功保存到待发布记录！");
+        }
+      }
+    });
+  };
 
   const proceedToTab = (tabId: string) => {
-    if (tabId === "submit" && submitInitialTag) {
+    if (tabId === "submit") {
       setSubmitInitialTag(null);
+      setSubmitTargetProjectId(null);
+      setSubmitInitialRecord(null);
+      setSubmitInitialDraft(null);
+      setSubmitRatingFields([]);
+      setSubmitCustomInputs([]);
     }
     setActiveTab(tabId);
     (window as any).isSubmitFormDirty = false;
@@ -222,20 +292,24 @@ export default function App() {
   useEffect(() => {
     async function loadProjects() {
       try {
-        const response = await fetch("/api/projects");
+        const response = await fetch("/api/projects", {
+          headers: { "Authorization": `Bearer ${localStorage.getItem("stars:token")}` }
+        });
         if (response.ok) {
           const data = await response.json();
-          setProjectsList(data);
+          // API 返回的是 ApiResponse，提取真正的项目列表数组
+          const projects = data.data?.list || data.list || data;
+          setProjectsList(projects);
         } else {
-          setProjectsList(MOCK_PROJECTS);
+          setProjectsList([]);
         }
       } catch (err) {
-        console.warn("Failed to load backend API, falling back to mock data.", err);
-        setProjectsList(MOCK_PROJECTS);
+        console.warn("Failed to load backend API, falling back to empty list.", err);
+        setProjectsList([]);
       }
     }
     loadProjects();
-  }, []);
+  }, [currentUser]);
 
   // Sync likes to localStorage
   useEffect(() => {
@@ -266,44 +340,95 @@ export default function App() {
   // Like Toggle interaction helper
   const handleLikeToggle = (id: string, e: MouseEvent) => {
     e.stopPropagation();
-    setLikedProjectIds((prev) => {
-      const isCurrentlyLiked = prev.includes(id);
-      const updated = isCurrentlyLiked ? prev.filter((item) => item !== id) : [...prev, id];
+    requireAuth(() => {
+      setLikedProjectIds((prev) => {
+        const isCurrentlyLiked = prev.includes(id);
+        const updated = isCurrentlyLiked ? prev.filter((item) => item !== id) : [...prev, id];
 
-      // Mutate likes count locally inside projectsList to mirror server instantly
+        // Mutate likes count locally inside projectsList to mirror server instantly
+        setProjectsList((list) =>
+          list.map((proj) => {
+            if (proj.id === id) {
+              return {
+                ...proj,
+                likes: isCurrentlyLiked ? proj.likes - 1 : proj.likes + 1,
+              };
+            }
+            return proj;
+          })
+        );
+
+        triggerNotification(isCurrentlyLiked ? "已从投资组合中撤出支持" : "已纳入投资组合 · 影响力指数 +1 🚀");
+        return updated;
+      });
+    });
+  };
+
+  // Bookmark Toggle interaction helper
+  const handleBookmarkToggle = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    requireAuth(async () => {
+      // 乐观更新
+      let nextSaved = false;
       setProjectsList((list) =>
         list.map((proj) => {
           if (proj.id === id) {
+            nextSaved = !proj.bookmarked;
             return {
               ...proj,
-              likes: isCurrentlyLiked ? proj.likes - 1 : proj.likes + 1,
+              bookmarked: nextSaved,
             };
           }
           return proj;
         })
       );
+      triggerNotification(nextSaved ? "已收藏到档案收藏" : "已取消收藏");
 
-      triggerNotification(isCurrentlyLiked ? "已从投资组合中撤出支持" : "已纳入投资组合 · 影响力指数 +1 🚀");
-      return updated;
+      // 异步同步到后端
+      try {
+        await fetch(`/api/projects/${id}/bookmark`, { 
+          method: "POST",
+          headers: { "Authorization": `Bearer ${localStorage.getItem("stars:token")}` }
+        });
+      } catch (err) {
+        console.error("Failed to sync bookmark toggle", err);
+      }
     });
   };
 
-  // Bookmark Toggle interaction helper
-  const handleBookmarkToggle = (id: string, e: MouseEvent) => {
-    e.stopPropagation();
+  // Record Bookmark Toggle
+  const handleRecordBookmarkToggle = async (projectId: string, recordId: string) => {
+    // 乐观更新
+    let nextSaved = false;
     setProjectsList((list) =>
       list.map((proj) => {
-        if (proj.id === id) {
-          const nextSaved = !proj.bookmarked;
-          triggerNotification(nextSaved ? "重仓加入投资组合 · 贡献者权重提升 ✨" : "已从深度持仓中移除");
+        if (proj.id === projectId && proj.comments) {
           return {
             ...proj,
-            bookmarked: nextSaved,
+            comments: proj.comments.map(c => {
+              if (c.id === recordId) {
+                nextSaved = !c.bookmarked;
+                return { ...c, bookmarked: nextSaved };
+              }
+              return c;
+            })
           };
         }
         return proj;
       })
     );
+
+    triggerNotification(nextSaved ? "已收藏该记录 🌟" : "已取消记录收藏");
+
+    // 异步同步到后端
+    try {
+      await fetch(`/api/projects/${projectId}/comments/${recordId}/bookmark`, { 
+        method: "POST",
+        headers: { "Authorization": `Bearer ${localStorage.getItem("stars:token")}` }
+      });
+    } catch (err) {
+      console.error("Failed to sync record bookmark toggle", err);
+    }
   };
 
   const triggerNotification = (text: string) => {
@@ -317,27 +442,29 @@ export default function App() {
   // 点亮"痛点共鸣"后自动追踪该项目（订阅推送）
   const handlePainPointToggle = (id: string, e: MouseEvent) => {
     e.stopPropagation();
-    setPainPointIds((prev) => {
-      const hasPain = prev.includes(id);
-      if (hasPain) {
-        // 取消共鸣 → 同时取消追踪
-        setTrackedProjectIds((t) => t.filter((tid) => tid !== id));
-        triggerNotification("已取消痛点共鸣，停止追踪该项目");
-        return prev.filter((pid) => pid !== id);
-      } else {
-        // 点亮共鸣 → 自动开始追踪
-        setTrackedProjectIds((t) => t.includes(id) ? t : [...t, id]);
-        // 更新项目的痛点计数
-        setProjectsList((list) =>
-          list.map((proj) =>
-            proj.id === id
-              ? { ...proj, painPointCount: (proj.painPointCount ?? 0) + 1 }
-              : proj
-          )
-        );
-        triggerNotification("⚡ 痛点共鸣已点亮！已自动追踪该项目的所有动态");
-        return [...prev, id];
-      }
+    requireAuth(() => {
+      setPainPointIds((prev) => {
+        const hasPain = prev.includes(id);
+        if (hasPain) {
+          // 取消共鸣 → 同时取消追踪
+          setTrackedProjectIds((t) => t.filter((tid) => tid !== id));
+          triggerNotification("已取消痛点共鸣，停止追踪该项目");
+          return prev.filter((pid) => pid !== id);
+        } else {
+          // 点亮共鸣 → 自动开始追踪
+          setTrackedProjectIds((t) => t.includes(id) ? t : [...t, id]);
+          // 更新项目的痛点计数
+          setProjectsList((list) =>
+            list.map((proj) =>
+              proj.id === id
+                ? { ...proj, painPointCount: (proj.painPointCount ?? 0) + 1 }
+                : proj
+            )
+          );
+          triggerNotification("⚡ 痛点共鸣已点亮！已自动追踪该项目的所有动态");
+          return [...prev, id];
+        }
+      });
     });
   };
 
@@ -351,23 +478,29 @@ export default function App() {
     }
   };
 
-  // When AI Evaluate returns successfully, append project and inspect details
-  const handleSubmissionSuccess = (data: any, isRecord: boolean) => {
-    if (isRecord) {
+  const handleSubmissionSuccess = (data: any, isRecord: boolean, targetProjectId?: string | null, isEdit?: boolean) => {
+    if (isRecord && targetProjectId) {
       setProjectsList((prev) =>
         prev.map((proj) => {
-          if (proj.id === submitTargetProjectId) {
-            return {
-              ...proj,
-              comments: [data, ...(proj.comments || [])],
-              commentsCount: proj.commentsCount + 1
-            };
+          if (proj.id === targetProjectId) {
+            if (isEdit) {
+              return {
+                ...proj,
+                comments: (proj.comments || []).map(c => c.id === data.id ? data : c)
+              };
+            } else {
+              return {
+                ...proj,
+                comments: [data, ...(proj.comments || [])],
+                commentsCount: proj.commentsCount + 1
+              };
+            }
           }
           return proj;
         })
       );
-      setActiveProjectId(submitTargetProjectId);
-      triggerNotification("已成功添加新记录！✨");
+      setActiveProjectId(targetProjectId);
+      triggerNotification(isEdit ? "记录已成功更新！✨" : "已成功添加新记录！✨");
     } else {
       setProjectsList((prev) => [data, ...prev]);
       setActiveProjectId(data.id);
@@ -376,21 +509,95 @@ export default function App() {
   };
 
   // CRUD for Projects (Archive)
-  const handleAddProject = (newProject: Project) => {
-    setProjectsList((prev) => [newProject, ...prev]);
-    triggerNotification("已成功创建新档案库！");
+  const handleAddProject = async (newProject: Project) => {
+    requireAuth(async () => {
+      try {
+        const response = await fetch("/api/projects", {
+          method: "POST",
+          headers: { 
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${localStorage.getItem("stars:token")}`
+          },
+          body: JSON.stringify(newProject)
+        });
+        if (response.ok) {
+          const res = await response.json();
+          const createdProject = res.data || res;
+          setProjectsList((prev) => [createdProject, ...prev]);
+          triggerNotification("已成功创建新档案库！");
+        }
+      } catch (e) {
+        console.error("Failed to add project to backend:", e);
+      }
+    });
   };
 
-  const handleUpdateProject = (id: string, updatedFields: Partial<Project>) => {
-    setProjectsList((prev) =>
-      prev.map((proj) => (proj.id === id ? { ...proj, ...updatedFields } : proj))
-    );
-    triggerNotification("档案库已更新！");
+  const handleUpdateProject = async (id: string, updatedFields: Partial<Project>) => {
+    requireAuth(async () => {
+      try {
+        const response = await fetch(`/api/projects/${id}`, {
+          method: "PUT",
+          headers: { 
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${localStorage.getItem("stars:token")}`
+          },
+          body: JSON.stringify(updatedFields)
+        });
+        if (response.ok) {
+          setProjectsList((prev) =>
+            prev.map((proj) => (proj.id === id ? { ...proj, ...updatedFields } : proj))
+          );
+          triggerNotification("档案库已更新！");
+        }
+      } catch (e) {
+        console.error("Failed to update project in backend:", e);
+      }
+    });
   };
 
-  const handleDeleteProject = (id: string) => {
-    setProjectsList((prev) => prev.filter((proj) => proj.id !== id));
-    triggerNotification("档案库已删除");
+  const handleDeleteProject = async (id: string) => {
+    requireAuth(async () => {
+      try {
+        const response = await fetch(`/api/projects/${id}`, { 
+          method: "DELETE",
+          headers: { "Authorization": `Bearer ${localStorage.getItem("stars:token")}` }
+        });
+        if (response.ok) {
+          setProjectsList((prev) => prev.filter((proj) => proj.id !== id));
+          triggerNotification("档案库已删除");
+        }
+      } catch (e) {
+        console.error("Failed to delete project from backend:", e);
+      }
+    });
+  };
+
+  const handleDeleteRecord = async (projectId: string, recordId: string) => {
+    requireAuth(async () => {
+      try {
+        const response = await fetch(`/api/projects/${projectId}/comments/${recordId}`, { 
+          method: "DELETE",
+          headers: { "Authorization": `Bearer ${localStorage.getItem("stars:token")}` }
+        });
+        if (response.ok) {
+          setProjectsList((prev) =>
+            prev.map((proj) => {
+              if (proj.id === projectId && proj.comments) {
+                return {
+                  ...proj,
+                  comments: proj.comments.filter(c => c.id !== recordId),
+                  commentsCount: Math.max(0, proj.commentsCount - 1)
+                };
+              }
+              return proj;
+            })
+          );
+          triggerNotification("记录已删除");
+        }
+      } catch (err) {
+        console.error("Failed to delete record", err);
+      }
+    });
   };
 
   // Filters calculation
@@ -422,6 +629,22 @@ export default function App() {
         </div>
       )}
 
+      {/* Draft Save Confirmation Modal for Tab Switching */}
+      <ConfirmModal
+        isOpen={draftModalOpen}
+        title="保存草稿"
+        message="您有正在编辑的内容，是否保存到待发布记录后再离开？"
+        onConfirm={() => {
+          handleSaveDraft();
+          setDraftModalOpen(false);
+          if (pendingTab) proceedToTab(pendingTab);
+        }}
+        onCancel={() => {
+          setDraftModalOpen(false);
+          if (pendingTab) proceedToTab(pendingTab);
+        }}
+      />
+
       {/* TopAppBar - Persistent header matches mockup templates */}
       {!showMethodologyPage && (
         <header
@@ -452,13 +675,7 @@ export default function App() {
 
           {/* Right: Actions */}
           <div className="flex items-center justify-end w-1/3">
-            <button 
-              onClick={() => setActiveTab("auth")}
-              className="flex items-center gap-1.5 text-[13px] font-medium text-[#808080] hover:text-[#E0E0E0] transition-colors"
-            >
-              <User className="w-4 h-4" />
-              <span className="hidden sm:inline">登录</span>
-            </button>
+            {/* The login button was moved to ProfileView */}
           </div>
         </header>
       )}
@@ -502,6 +719,7 @@ export default function App() {
             <div className="flex flex-col w-full bg-[#12161A] min-h-screen">
               {/* Core Feature: Mind Map Tree with Integrated Hero Section */}
               <MindMapSection 
+                isLoggedIn={!!currentUser}
                 onBrowseProjects={() => setActiveTab("explore")}
                 onSubmitIdea={() => setActiveTab("submit")}
                 onCategorySelect={(filter) => {
@@ -587,17 +805,28 @@ export default function App() {
           {activeTab === "submit" && (
             <SubmitForm 
               onSuccess={(data, isRecord) => {
+                const currentProjectId = submitTargetProjectId;
+                const isEdit = !!submitInitialRecord;
+                
                 setSubmitInitialTag(null);
                 setSubmitTargetProjectId(null);
                 setSubmitRatingFields([]);
+                setSubmitCustomInputs([]);
                 setActiveTab("ranking"); // Reset bottom tab to leaderboard/archive so SubmitForm doesn't remain
-                handleSubmissionSuccess(data, isRecord);
+                
+                // 如果是通过编辑草稿发布的，我们发布成功后应当删除它
+                if (submitInitialDraft) {
+                  setDrafts(d => d.filter(x => x.id !== submitInitialDraft.id));
+                }
+                
+                handleSubmissionSuccess(data, isRecord, currentProjectId, isEdit);
               }}
               onCancel={() => {
                 const prevProjectId = submitTargetProjectId;
                 setSubmitInitialTag(null);
                 setSubmitTargetProjectId(null);
                 setSubmitRatingFields([]);
+                setSubmitCustomInputs([]);
                 
                 if (prevProjectId) {
                   setActiveProjectId(prevProjectId);
@@ -606,10 +835,24 @@ export default function App() {
                   setActiveTab("home");
                 }
               }}
+              onSaveDraft={(draft) => {
+                setDrafts(prev => {
+                  const newDrafts = prev.filter(d => d.id !== draft.id);
+                  return [draft, ...newDrafts];
+                });
+                triggerNotification("已成功保存到待发布记录！");
+              }}
+              onDiscardDraft={(draftId) => {
+                setDrafts(d => d.filter(x => x.id !== draftId));
+              }}
               initialTag={submitInitialTag}
               isLocked={!!submitInitialTag}
               targetProjectId={submitTargetProjectId}
+              targetProject={submitTargetProjectId ? projectsList.find(p => p.id === submitTargetProjectId) : null}
               ratingFields={submitRatingFields}
+              customInputs={submitCustomInputs}
+              initialRecord={submitInitialRecord}
+              initialDraft={submitInitialDraft}
             />
           )}
 
@@ -623,15 +866,20 @@ export default function App() {
             <LeaderboardView
               projects={projectsList}
               initialFilter={archiveInitialFilter}
+              currentUser={currentUser}
+              onNavigateToAuth={() => setActiveTab("auth")}
               onSelectProject={(id) => setActiveProjectId(id)}
               onAddProject={handleAddProject}
               onUpdateProject={handleUpdateProject}
               onDeleteProject={handleDeleteProject}
               onBookmarkToggle={handleBookmarkToggle}
-              onNavigateToSubmit={(projectId, tag, ratingFields) => {
+              onToggleRecordBookmark={handleRecordBookmarkToggle}
+              onNavigateToSubmit={(projectId, tag, ratingFields, customInputs, initialRecord) => {
                 setSubmitTargetProjectId(projectId);
                 setSubmitInitialTag(tag);
                 setSubmitRatingFields(ratingFields || []);
+                setSubmitCustomInputs(customInputs || []);
+                setSubmitInitialRecord(initialRecord || null);
                 setActiveTab("submit");
               }}
             />
@@ -645,20 +893,64 @@ export default function App() {
           {/* Tab 6: Profile dashboard View */}
           {activeTab === "profile" && (
             <ProfileView
-              userEmail="yueboran666@gmail.com"
+              currentUser={currentUser}
+              onNavigateToAuth={() => setActiveTab("auth")}
+              onLogout={() => {
+                localStorage.removeItem("stars:token");
+                setCurrentUser(null);
+                triggerNotification("已安全注销");
+              }}
+              onAvatarUpload={async (file) => {
+                const formData = new FormData();
+                formData.append("file", file);
+                try {
+                  const token = localStorage.getItem("stars:token");
+                  const res = await fetch("/api/auth/me/avatar", {
+                    method: "POST",
+                    headers: { "Authorization": `Bearer ${token}` },
+                    body: formData
+                  });
+                  if (res.ok) {
+                    const data = await res.json();
+                    setCurrentUser((prev: any) => ({ ...prev, avatarUrl: data.data.avatarUrl }));
+                    triggerNotification("头像更新成功");
+                  } else {
+                    triggerNotification("头像更新失败");
+                  }
+                } catch (err) {
+                  console.error(err);
+                }
+              }}
               bookmarkedProjects={bbookmarkeds}
               likedProjects={likedProjectIds}
               submittedCount={myCreatedCount}
               allProjects={projectsList}
+              draftRecords={drafts}
               onSelectProject={(id) => setActiveProjectId(id)}
               onLikeToggle={handleLikeToggle}
               onBookmarkToggle={handleBookmarkToggle}
-              onNavigateToSubmit={(projectId, tag, ratingFields) => {
+              onToggleRecordBookmark={handleRecordBookmarkToggle}
+              onSyncProjects={(syncedList) => setProjectsList(syncedList)}
+              onEditDraft={(draft) => {
+                setSubmitTargetProjectId(draft.targetProjectId);
+                setSubmitInitialTag(draft.tag);
+                setSubmitRatingFields(Object.keys(draft.ratings));
+                setSubmitCustomInputs(Object.keys(draft.customData).map(k => ({ name: k, type: 'singleLine' })));
+                setSubmitInitialRecord(null);
+                setSubmitInitialDraft(draft);
+                setActiveTab("submit");
+              }}
+              onNavigateToSubmit={(projectId, tag, ratingFields, customInputs, initialRecord) => {
                 setSubmitTargetProjectId(projectId);
                 setSubmitInitialTag(tag);
                 setSubmitRatingFields(ratingFields || []);
+                setSubmitCustomInputs(customInputs || []);
+                setSubmitInitialRecord(initialRecord || null);
+                setSubmitInitialDraft(null);
                 setActiveTab("submit");
               }}
+              onUpdateProject={handleUpdateProject}
+              onDeleteProject={handleDeleteProject}
             />
           )}
         </div>
@@ -676,11 +968,14 @@ export default function App() {
         message="发现未保存的编辑内容，是否将其保存为草稿？"
         onConfirm={() => {
           setDraftModalOpen(false);
-          // simulate draft save
+          handleSaveDraft();
           if (pendingTab) proceedToTab(pendingTab);
         }}
         onCancel={() => {
           setDraftModalOpen(false);
+          if (submitInitialDraft) {
+            setDrafts(d => d.filter(x => x.id !== submitInitialDraft.id));
+          }
           if (pendingTab) proceedToTab(pendingTab);
         }}
       />
@@ -691,10 +986,14 @@ export default function App() {
           <ArchiveDetailView
             project={projectsList.find((p) => p.id === activeProjectId)!}
             onBack={() => setActiveProjectId(null)}
-            onAddRecord={(projectId, tag, ratingFields) => {
+            onToggleRecordBookmark={handleRecordBookmarkToggle}
+            onDeleteRecord={handleDeleteRecord}
+            onAddRecord={(projectId, tag, ratingFields, customInputs, initialRecord) => {
               setSubmitTargetProjectId(projectId);
               setSubmitInitialTag(tag);
               setSubmitRatingFields(ratingFields || []);
+              setSubmitCustomInputs(customInputs || []);
+              setSubmitInitialRecord(initialRecord || null);
               setActiveTab("submit");
               setActiveProjectId(null);
             }}

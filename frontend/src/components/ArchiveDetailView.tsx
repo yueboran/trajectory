@@ -1,12 +1,15 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { ArrowLeft, ChevronRight, ChevronDown, Plus } from "lucide-react";
+import { ArrowLeft, ChevronRight, ChevronDown, Plus, Star, MoreHorizontal, Edit2, Trash2 } from "lucide-react";
 import { Project, Comment } from "../types";
+import ConfirmModal from "./ConfirmModal";
 
 interface ArchiveDetailViewProps {
   project: Project;
   initialRecordId?: string;
   onBack: () => void;
-  onAddRecord?: (projectId: string, tag: string, ratingFields?: string[]) => void;
+  onToggleRecordBookmark?: (projectId: string, recordId: string) => void;
+  onDeleteRecord?: (projectId: string, recordId: string) => void;
+  onAddRecord?: (projectId: string, tag: string, ratingFields?: string[], customInputs?: {name: string, type: 'singleLine'|'multiLine'}[], initialRecord?: Comment) => void;
 }
 
 // 辅助函数：将相对时间（如"5小时前"）转换为精准的"YYYY-MM-DD HH:mm"格式
@@ -56,7 +59,9 @@ function formatExactDate(timeAgo: string | undefined): string {
  * 4. 暗黑适配：底色 #141416，文字 #E0E0E0，避免纯黑+纯白
  * 5. 卡片式记录：Flomo 风格，白色卡片突出于微灰底
  */
-export default function ArchiveDetailView({ project, initialRecordId, onBack, onAddRecord }: ArchiveDetailViewProps) {
+export default function ArchiveDetailView({ project, initialRecordId, onBack, onToggleRecordBookmark, onDeleteRecord, onAddRecord }: ArchiveDetailViewProps) {
+  const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
+  const [deleteRecordId, setDeleteRecordId] = useState<string | null>(null);
   const [viewingRecord, setViewingRecord] = useState<Comment | null>(() => {
     if (initialRecordId && project.comments) {
       return project.comments.find(c => c.id === initialRecordId) || null;
@@ -167,23 +172,55 @@ export default function ArchiveDetailView({ project, initialRecordId, onBack, on
         <article className="px-5 md:px-8 pt-6 pb-20 max-w-[640px] mx-auto">
           {/* 标题与时间 */}
           <div className="mb-6 flex flex-col gap-2">
-            <h1 className="text-[24px] md:text-[28px] font-black text-white leading-tight tracking-wide drop-shadow-md">
-              {viewingRecord.title || "无"}
-            </h1>
-            <div className="flex flex-wrap items-center gap-3">
-              <p className="text-[13px] text-[#808080] font-medium tracking-wider">{formatExactDate(viewingRecord.timeAgo)}</p>
+            {project.requireTitleField && (
+              <h1 className="text-[24px] md:text-[28px] font-black text-white leading-tight tracking-wide drop-shadow-md">
+                {viewingRecord.title || "无"}
+              </h1>
+            )}
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <p className="text-[13px] text-[#808080] font-medium tracking-wider">{formatExactDate(viewingRecord.timeAgo)}</p>
+                
+                {viewingRecord.ratings && Object.keys(viewingRecord.ratings).length > 0 && (
+                  <div className="flex items-center gap-2">
+                    <span className="w-1 h-1 rounded-full bg-[#303030]"></span>
+                    {Object.entries(viewingRecord.ratings).map(([key, val]) => (
+                      <span key={key} className="text-[12px] font-medium text-amber-400">
+                        {key}: {val}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
               
-              {viewingRecord.ratings && Object.keys(viewingRecord.ratings).length > 0 && (
-                <div className="flex items-center gap-2">
-                  <span className="w-1 h-1 rounded-full bg-[#303030]"></span>
-                  {Object.entries(viewingRecord.ratings).map(([key, val]) => (
-                    <span key={key} className="text-[12px] font-medium text-amber-400">
-                      {key}: {val}
-                    </span>
-                  ))}
-                </div>
-              )}
+              {/* 全文视图：收藏按钮 */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggleRecordBookmark?.(project.id, viewingRecord.id);
+                  setViewingRecord(prev => prev ? {...prev, bookmarked: !prev.bookmarked} : prev);
+                }}
+                className={`p-1.5 rounded-md transition-colors ${
+                  viewingRecord.bookmarked 
+                    ? "text-amber-400 bg-amber-400/10" 
+                    : "text-[#808080] hover:text-[#E0E0E0] hover:bg-white/5"
+                }`}
+              >
+                <Star className={`w-4 h-4 ${viewingRecord.bookmarked ? "fill-amber-400" : ""}`} />
+              </button>
             </div>
+
+            {/* 自定义数据属性块 */}
+            {viewingRecord.customData && Object.keys(viewingRecord.customData).length > 0 && (
+              <div className="mt-4 flex flex-col gap-2 p-4 bg-[#1A1A1E] border border-[#2A2A2E] rounded-xl shadow-sm">
+                {Object.entries(viewingRecord.customData).map(([key, val]) => (
+                  <div key={key} className="flex flex-col gap-1">
+                    <span className="text-[11px] font-medium text-[#808080] uppercase tracking-wider">{key}</span>
+                    <span className="text-[14px] text-[#D0D0D0] break-words whitespace-pre-wrap">{val}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* 如果有类型标记 */}
@@ -253,7 +290,7 @@ export default function ArchiveDetailView({ project, initialRecordId, onBack, on
         <div
           className="absolute inset-0 bg-cover bg-center scale-105"
           style={{
-            backgroundImage: `url(${project.coverImage || '/images/mocks/hot_carousel_1.png'})`,
+            backgroundImage: `url(${project.coverImage || '/api/static/images/mocks/hot_carousel_1.webp'})`,
             opacity: 0.35,
             filter: "brightness(0.8)",
           }}
@@ -288,7 +325,7 @@ export default function ArchiveDetailView({ project, initialRecordId, onBack, on
           </p>
 
           <button
-            onClick={() => onAddRecord?.(project.id, project.tags?.[0] || "", project.ratingFields)}
+            onClick={() => onAddRecord?.(project.id, project.tags?.[0] || "", project.ratingFields, project.customInputs)}
             className="self-start flex items-center gap-2 px-5 py-2.5 bg-[#F0F0F0] hover:bg-white text-[#141416] text-[13px] font-semibold rounded-full active:scale-[0.97] transition-all duration-200 shadow-md"
           >
             <Plus className="w-4 h-4 text-[#141416]" />
@@ -397,10 +434,12 @@ export default function ArchiveDetailView({ project, initialRecordId, onBack, on
                   className="bg-[#1A1A1E] rounded-2xl px-5 py-4 cursor-pointer border border-[#242428] hover:border-[#333338] active:scale-[0.99] transition-all duration-200"
                 >
                   {/* 头部：标题与时间 */}
-                  <div className="flex items-start justify-between gap-3 mb-4">
-                    <h3 className="text-[17px] md:text-[19px] font-black text-white leading-tight line-clamp-2 flex-1 tracking-wide drop-shadow-sm">
-                      {record.title || "无"}
-                    </h3>
+                  <div className={`flex items-start ${project.requireTitleField ? 'justify-between' : 'justify-end'} gap-3 mb-4`}>
+                    {project.requireTitleField && (
+                      <h3 className="text-[17px] md:text-[19px] font-black text-white leading-tight line-clamp-2 flex-1 tracking-wide drop-shadow-sm">
+                        {record.title || "无"}
+                      </h3>
+                    )}
                     
                     <div className="flex flex-col items-end gap-2 shrink-0 mt-1">
                       <div className="flex items-center gap-2">
@@ -410,6 +449,32 @@ export default function ArchiveDetailView({ project, initialRecordId, onBack, on
                           </span>
                         )}
                         <span className="text-[11px] md:text-[12px] text-[#808080] font-medium whitespace-nowrap tracking-wider">{formatExactDate(record.timeAgo)}</span>
+                        
+                        {/* 卡片视图：收藏按钮 */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onToggleRecordBookmark?.(project.id, record.id);
+                          }}
+                          className={`ml-1 p-1 rounded-md transition-colors ${
+                            record.bookmarked 
+                              ? "text-amber-400 bg-amber-400/10" 
+                              : "text-[#606060] hover:text-[#A0A0A0] hover:bg-white/5"
+                          }`}
+                        >
+                          <Star className={`w-3.5 h-3.5 ${record.bookmarked ? "fill-amber-400" : ""}`} />
+                        </button>
+
+                        {/* 更多操作入口 */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActiveMenuId(activeMenuId === record.id ? null : record.id);
+                          }}
+                          className="p-1 rounded-md text-[#606060] hover:text-[#A0A0A0] hover:bg-white/5 transition-colors"
+                        >
+                          <MoreHorizontal className="w-4 h-4" />
+                        </button>
                       </div>
                       
                       {/* 渲染评分 */}
@@ -424,6 +489,18 @@ export default function ArchiveDetailView({ project, initialRecordId, onBack, on
                       )}
                     </div>
                   </div>
+
+                  {/* 渲染扩展字段（简化版，仅显示字段名和部分值） */}
+                  {record.customData && Object.keys(record.customData).length > 0 && (
+                    <div className="flex flex-wrap gap-2 mb-3">
+                      {Object.entries(record.customData).map(([key, val]) => (
+                        <div key={key} className="flex items-center gap-1.5 px-2 py-1 bg-[#232328] rounded-md text-[11px] max-w-full overflow-hidden">
+                          <span className="text-[#808080] shrink-0">{key}:</span>
+                          <span className="text-[#C0C0C0] truncate">{val}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
 
                   {/* 正文预览 — 4行截断 + 渐变遮罩 */}
                   <div className="relative">
@@ -473,12 +550,64 @@ export default function ArchiveDetailView({ project, initialRecordId, onBack, on
                       <ChevronDown className="w-4 h-4" />
                     </div>
                   )}
+
+                  {/* 展开的操作菜单 */}
+                  {activeMenuId === record.id && (
+                    <div
+                      className="mt-4 pt-3 border-t border-[#242428] flex animate-fade-in"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <button
+                        onClick={() => { 
+                          if (onAddRecord) {
+                            const fields = record.ratings ? Object.keys(record.ratings) : [];
+                            const customInputDefs = record.customData 
+                              ? Object.keys(record.customData).map(k => ({ name: k, type: 'singleLine' as const }))
+                              : [];
+                            onAddRecord(project.id, record.category || project.tags[0], fields, customInputDefs, record);
+                          }
+                          setActiveMenuId(null);
+                        }}
+                        className="flex-1 flex items-center justify-center gap-2 py-2 text-[12px] font-medium text-[#A0A0A0] hover:bg-white/5 transition-colors rounded-lg"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                        编辑
+                      </button>
+                      <div className="w-px bg-[#242428] mx-2" />
+                      <button
+                        onClick={() => {
+                          setDeleteRecordId(record.id);
+                          setActiveMenuId(null);
+                        }}
+                        className="flex-1 flex items-center justify-center gap-2 py-2 text-[12px] font-medium text-[#c45353] hover:bg-red-500/10 transition-colors rounded-lg"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        删除
+                      </button>
+                    </div>
+                  )}
                 </div>
               );
             })
           )}
         </div>
       </div>
+      
+      <ConfirmModal
+        isOpen={!!deleteRecordId}
+        title="删除记录"
+        message="确定要删除这条记录吗？该操作不可恢复。"
+        confirmText="确认删除"
+        cancelText="取消"
+        variant="danger"
+        onConfirm={() => {
+          if (deleteRecordId && onDeleteRecord) {
+            onDeleteRecord(project.id, deleteRecordId);
+          }
+          setDeleteRecordId(null);
+        }}
+        onCancel={() => setDeleteRecordId(null)}
+      />
     </div>
   );
 }
