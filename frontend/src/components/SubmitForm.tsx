@@ -50,7 +50,7 @@ export default function SubmitForm({ onSuccess, onCancel, initialTag, isLocked, 
       if (empty !== false) return null;
       const html = editorRef.current?.getHTML() || "";
       const text = editorRef.current?.getText() || "";
-      const title = targetProject?.requireTitleField ? titleInput : (text.trim().slice(0, 20) || "草稿记录");
+      const title = targetProject?.requireTitleField ? titleInput : "";
       const draft: DraftRecord = {
         id: initialDraft?.id || "draft-" + Date.now(),
         title,
@@ -88,7 +88,7 @@ export default function SubmitForm({ onSuccess, onCancel, initialTag, isLocked, 
 
     setErrorMessage("");
 
-    const title = targetProject?.requireTitleField ? titleInput : (text.trim().slice(0, 20) || "生活点滴");
+    const title = targetProject?.requireTitleField ? titleInput : "";
     const plainDescription = text.replace(/\n+/g, " ");
 
     const parsedRatings: Record<string, number> = {};

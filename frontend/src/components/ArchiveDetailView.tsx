@@ -172,11 +172,21 @@ export default function ArchiveDetailView({ project, initialRecordId, onBack, on
         <article className="px-5 md:px-8 pt-6 pb-20 max-w-[640px] mx-auto">
           {/* 标题与时间 */}
           <div className="mb-6 flex flex-col gap-2">
-            {project.requireTitleField && (
-              <h1 className="text-[24px] md:text-[28px] font-black text-white leading-tight tracking-wide drop-shadow-md">
-                {viewingRecord.title || "无"}
-              </h1>
-            )}
+            {(() => {
+              let displayTitle = viewingRecord.title;
+              if (!displayTitle && viewingRecord.customData && Object.keys(viewingRecord.customData).length > 0) {
+                const firstKey = Object.keys(viewingRecord.customData)[0];
+                displayTitle = `${firstKey}: ${viewingRecord.customData[firstKey]}`;
+              }
+              if (displayTitle || project.requireTitleField) {
+                return (
+                  <h1 className="text-[24px] md:text-[28px] font-black text-white leading-tight tracking-wide drop-shadow-md">
+                    {displayTitle || "无标题"}
+                  </h1>
+                );
+              }
+              return null;
+            })()}
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-3">
                 <p className="text-[13px] text-[#808080] font-medium tracking-wider">{formatExactDate(viewingRecord.timeAgo)}</p>
@@ -185,8 +195,8 @@ export default function ArchiveDetailView({ project, initialRecordId, onBack, on
                   <div className="flex items-center gap-2">
                     <span className="w-1 h-1 rounded-full bg-[#303030]"></span>
                     {Object.entries(viewingRecord.ratings).map(([key, val]) => (
-                      <span key={key} className="text-[12px] font-medium text-amber-400">
-                        {key}: {val}
+                      <span key={key} className="flex items-center gap-1 px-1.5 py-0.5 bg-[#1E1E22] text-[#A0A0A0] text-[11px] font-medium rounded">
+                        <span className="text-amber-400 text-[10px]">★</span> {key} {val}
                       </span>
                     ))}
                   </div>
@@ -211,16 +221,23 @@ export default function ArchiveDetailView({ project, initialRecordId, onBack, on
             </div>
 
             {/* 自定义数据属性块 */}
-            {viewingRecord.customData && Object.keys(viewingRecord.customData).length > 0 && (
-              <div className="mt-4 flex flex-col gap-2 p-4 bg-[#1A1A1E] border border-[#2A2A2E] rounded-xl shadow-sm">
-                {Object.entries(viewingRecord.customData).map(([key, val]) => (
-                  <div key={key} className="flex flex-col gap-1">
-                    <span className="text-[11px] font-medium text-[#808080] uppercase tracking-wider">{key}</span>
-                    <span className="text-[14px] text-[#D0D0D0] break-words whitespace-pre-wrap">{val}</span>
-                  </div>
-                ))}
-              </div>
-            )}
+            {(() => {
+              if (!viewingRecord.customData) return null;
+              const entries = Object.entries(viewingRecord.customData);
+              const displayEntries = viewingRecord.title ? entries : entries.slice(1);
+              if (displayEntries.length === 0) return null;
+
+              return (
+                <div className="mt-4 flex flex-col gap-2 p-4 bg-[#1A1A1E] border border-[#2A2A2E] rounded-xl shadow-sm">
+                  {displayEntries.map(([key, val]) => (
+                    <div key={key} className="flex items-start gap-3">
+                      <span className="text-[13px] text-[#606060] whitespace-nowrap min-w-[50px] mt-[1px]">{key}</span>
+                      <span className="text-[14px] font-medium text-[#D0D0D0] break-words whitespace-pre-wrap">{val}</span>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
           </div>
 
           {/* 如果有类型标记 */}
@@ -427,6 +444,13 @@ export default function ArchiveDetailView({ project, initialRecordId, onBack, on
             filteredRecords.map((record) => {
               const isLong = record.content.length > 90;
 
+              let displayTitle = record.title;
+              if (!displayTitle && record.customData && Object.keys(record.customData).length > 0) {
+                const firstKey = Object.keys(record.customData)[0];
+                displayTitle = `${firstKey}: ${record.customData[firstKey]}`;
+              }
+              const showTitleBlock = displayTitle || project.requireTitleField;
+
               return (
                 <div
                   key={record.id}
@@ -434,10 +458,10 @@ export default function ArchiveDetailView({ project, initialRecordId, onBack, on
                   className="bg-[#1A1A1E] rounded-2xl px-5 py-4 cursor-pointer border border-[#242428] hover:border-[#333338] active:scale-[0.99] transition-all duration-200"
                 >
                   {/* 头部：标题与时间 */}
-                  <div className={`flex items-start ${project.requireTitleField ? 'justify-between' : 'justify-end'} gap-3 mb-4`}>
-                    {project.requireTitleField && (
+                  <div className={`flex items-start ${showTitleBlock ? 'justify-between' : 'justify-end'} gap-3 mb-4`}>
+                    {showTitleBlock && (
                       <h3 className="text-[17px] md:text-[19px] font-black text-white leading-tight line-clamp-2 flex-1 tracking-wide drop-shadow-sm">
-                        {record.title || "无"}
+                        {displayTitle || "无标题"}
                       </h3>
                     )}
                     
@@ -481,8 +505,8 @@ export default function ArchiveDetailView({ project, initialRecordId, onBack, on
                       {record.ratings && Object.keys(record.ratings).length > 0 && (
                         <div className="flex flex-wrap gap-1.5 justify-end">
                           {Object.entries(record.ratings).map(([key, val]) => (
-                            <span key={key} className="px-1.5 py-0.5 bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] rounded font-medium">
-                              {key}: {val}
+                            <span key={key} className="flex items-center gap-1 px-1.5 py-0.5 bg-[#232328] text-[#A0A0A0] text-[10px] rounded font-medium">
+                              <span className="text-amber-500/90 text-[10px]">★</span> {key} {val}
                             </span>
                           ))}
                         </div>
@@ -491,16 +515,23 @@ export default function ArchiveDetailView({ project, initialRecordId, onBack, on
                   </div>
 
                   {/* 渲染扩展字段（简化版，仅显示字段名和部分值） */}
-                  {record.customData && Object.keys(record.customData).length > 0 && (
-                    <div className="flex flex-wrap gap-2 mb-3">
-                      {Object.entries(record.customData).map(([key, val]) => (
-                        <div key={key} className="flex items-center gap-1.5 px-2 py-1 bg-[#232328] rounded-md text-[11px] max-w-full overflow-hidden">
-                          <span className="text-[#808080] shrink-0">{key}:</span>
-                          <span className="text-[#C0C0C0] truncate">{val}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                  {(() => {
+                    if (!record.customData) return null;
+                    const entries = Object.entries(record.customData);
+                    const displayEntries = record.title ? entries : entries.slice(1);
+                    if (displayEntries.length === 0) return null;
+                    
+                    return (
+                      <div className="flex flex-wrap gap-2 mb-3">
+                        {displayEntries.map(([key, val]) => (
+                          <div key={key} className="flex items-center gap-1.5 px-2 py-1 bg-[#232328] rounded-md text-[11px] max-w-full overflow-hidden">
+                            <span className="text-[#606060] shrink-0">{key}</span>
+                            <span className="text-[#D0D0D0] font-medium truncate">{val}</span>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
 
                   {/* 正文预览 — 4行截断 + 渐变遮罩 */}
                   <div className="relative">

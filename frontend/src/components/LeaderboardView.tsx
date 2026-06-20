@@ -1,7 +1,7 @@
 import React, { useState } from "react";
-import { ChevronRight, Edit2, Trash2, Plus, X, MoreHorizontal, Star, User } from "lucide-react";
+import { ChevronRight, Edit2, Trash2, Plus, X, MoreHorizontal, Star, User, Filter } from "lucide-react";
 import { Project } from "../types";
-import { getSelectableTags } from "../data/treeData";
+import { getSelectableTags, treeData } from "../data/treeData";
 import ArchiveDetailView from "./ArchiveDetailView";
 import CategoryCascader from "./CategoryCascader";
 import ConfirmModal from "./ConfirmModal";
@@ -40,9 +40,42 @@ export default function LeaderboardView({ projects, initialFilter = "全部", on
   const [selectedArchiveId, setSelectedArchiveId] = useState<string | null>(null);
   // 展开的操作菜单
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
-  // 顶部三级筛选状态
   const [filterTag, setFilterTag] = useState<string>(initialFilter);
   const [deleteProjectId, setDeleteProjectId] = useState<string | null>(null);
+
+  // 抽屉与过滤内部状态
+  const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
+  const activeLevel1 = filterTag === "全部" ? "全部" : filterTag.split(' / ')[0];
+  const activeLevel2 = filterTag === "全部" ? "" : (filterTag.split(' / ')[1] || "");
+  const activeLevel3 = filterTag === "全部" ? "" : (filterTag.split(' / ')[2] || "");
+
+  const handleL1Click = (l1Label: string) => {
+    if (l1Label === "全部") {
+      setFilterTag("全部");
+    } else {
+      setFilterTag(l1Label);
+    }
+  };
+
+  const currentL1Node = treeData.find(n => n.label.split('(')[0].trim() === activeLevel1);
+
+  // 查找当前节点以获取背景图
+  let currentBgImage = '/images/banners/hero_carousel_banner.webp';
+  if (currentL1Node) {
+    currentBgImage = currentL1Node.image || currentBgImage;
+    if (activeLevel2 && currentL1Node.children) {
+      const l2Node = currentL1Node.children.find(n => n.label.trim() === activeLevel2);
+      if (l2Node) {
+        currentBgImage = l2Node.image || currentBgImage;
+        if (activeLevel3 && l2Node.children) {
+          const l3Node = l2Node.children.find(n => n.label.trim() === activeLevel3);
+          if (l3Node) {
+            currentBgImage = l3Node.image || currentBgImage;
+          }
+        }
+      }
+    }
+  }
   
   React.useEffect(() => {
     setFilterTag(initialFilter);
@@ -240,7 +273,7 @@ export default function LeaderboardView({ projects, initialFilter = "全部", on
         <div
           className="absolute inset-0 bg-cover bg-center scale-105"
           style={{
-            backgroundImage: 'url(/images/mocks/hot_carousel_1.webp)',
+            backgroundImage: `url(${currentBgImage})`,
             opacity: 0.35,
             filter: "brightness(0.7) saturate(0.8)",
           }}
@@ -250,19 +283,30 @@ export default function LeaderboardView({ projects, initialFilter = "全部", on
 
         {/* Hero 文字 */}
         <div className="relative z-10 flex flex-col px-5 md:px-8 mt-2 max-w-[640px] mx-auto w-full">
-          <h1 className="text-[26px] md:text-[30px] font-bold text-[#F0F0F0] leading-[1.2] mb-2 tracking-tight">
-            档案库
+          <h1 className="text-[26px] md:text-[30px] font-bold text-[#F0F0F0] leading-[1.2] mb-4 tracking-tight">
+            {activeLevel3 || activeLevel2 || (activeLevel1 !== "全部" ? activeLevel1 : "全部档案")}
           </h1>
-          <p className="text-[13px] text-[#808080] leading-[1.6] mb-4 max-w-[360px]">
-            沉淀你的认知、实践与思考，构建专属的数字生命资产。
-          </p>
-          <button
-            onClick={() => handleOpenForm()}
-            className="self-start flex items-center gap-2 px-5 py-2.5 bg-[#F0F0F0] hover:bg-white text-[#141416] text-[13px] font-semibold rounded-full active:scale-[0.97] transition-all duration-200"
-          >
-            <Plus className="w-4 h-4" />
-            新建档案
-          </button>
+          <div className="flex items-center gap-3 self-start mt-2">
+            <button
+              onClick={() => handleOpenForm()}
+              className="flex items-center gap-2 px-5 py-2.5 bg-[#F0F0F0] hover:bg-white text-[#141416] text-[13px] font-semibold rounded-full active:scale-[0.97] transition-all duration-200"
+            >
+              <Plus className="w-4 h-4" />
+              新建档案
+            </button>
+            <button
+              onClick={() => handleL1Click("全部")}
+              className={`px-5 py-2.5 text-[13px] font-semibold rounded-full active:scale-[0.97] transition-all duration-200 border ${activeLevel1 === "全部" ? "bg-[#1A1A1E] text-[#D9A04A] border-[#D9A04A]/30 shadow-[0_0_10px_rgba(217,160,74,0.15)]" : "bg-transparent text-[#808080] border-white/10 hover:text-white"}`}
+            >
+              全部档案
+            </button>
+            <button 
+              onClick={() => setIsFilterDrawerOpen(true)}
+              className="p-2.5 rounded-full bg-transparent border border-white/10 text-[#A0A0A0] hover:text-white hover:bg-white/10 transition-colors shadow-inner"
+            >
+              <Filter className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -275,10 +319,7 @@ export default function LeaderboardView({ projects, initialFilter = "全部", on
           <span className="text-[12px] text-[#505050]">{displayProjects.length} 个</span>
         </div>
 
-        {/* 顶部筛选器 */}
-        <div className="mb-4">
-          <CategoryCascader value={filterTag} onChange={setFilterTag} allowAll={true} />
-        </div>
+        <div className="mb-4"></div>
 
         {/* 卡片列表 */}
         <div className="space-y-3">
@@ -289,71 +330,93 @@ export default function LeaderboardView({ projects, initialFilter = "全部", on
             </div>
           ) : (
             displayProjects.map((project) => {
-              const tagsPath = getCategoryPath(project.tags).join(" > ");
+              const pathsArray = getCategoryPath(project.tags);
+              let displayPath = pathsArray.join(" > ");
+              if (activeLevel3) {
+                displayPath = pathsArray.slice(-1).join(" > ");
+              } else if (activeLevel2) {
+                displayPath = pathsArray.slice(-2).join(" > ");
+              }
               const recordCount = project.comments?.length || 0;
 
               return (
                 <div
                   key={project.id}
-                  className={`relative bg-[#1A1A1E] rounded-2xl border border-[#242428] transition-all duration-200 overflow-hidden ${
-                    activeMenuId === project.id ? "z-20 border-[#333338]" : "hover:border-[#333338] active:scale-[0.99]"
+                  className={`relative bg-[#1A1A1E] rounded-2xl transition-all duration-300 overflow-hidden ${
+                    activeMenuId === project.id ? "z-20" : "hover:-translate-y-1 hover:bg-[#1C1C20] active:scale-[0.99]"
                   }`}
+                  style={{ border: '1px solid rgba(255, 255, 255, 0.05)' }}
                 >
                   {/* 主体可点击区域 */}
                   <div
                     onClick={() => setSelectedArchiveId(project.id)}
-                    className="px-5 py-4 cursor-pointer"
+                    className="px-5 py-5 md:px-6 md:py-6 cursor-pointer flex flex-col"
                   >
-                    {/* 顶部行：标签 + 操作菜单 */}
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex flex-wrap items-center gap-2 max-w-[75%]">
-                        <span className="px-2.5 py-1 rounded-md bg-amber-400/10 border border-amber-400/20 text-[10px] md:text-[11px] font-bold text-amber-400 tracking-wide">
-                          {tagsPath}
-                        </span>
-                        {recordCount > 0 && (
-                          <span className="px-2.5 py-1 rounded-md bg-[#4cd7f6]/10 border border-[#4cd7f6]/20 text-[10px] md:text-[11px] font-bold text-[#4cd7f6] tracking-wide">
-                            {recordCount} 条记录
+                    {/* 顶部行：简化的标签 + 操作菜单 */}
+                    <div className="flex items-center justify-between mb-2">
+                      {/* 左侧动态层级标签 */}
+                      <span className="text-[11px] font-medium text-[#707070] tracking-wide">
+                        {displayPath}
+                      </span>
+
+                      {/* 右侧：创建时间、操作区 */}
+                      <div className="flex items-center gap-2">
+                        {project.timeAgo && (
+                          <span className="text-[10px] text-[#606060] font-medium mr-1">
+                            {project.timeAgo}
                           </span>
                         )}
-                      </div>
-
-                      {/* 右侧操作区：收藏 + 菜单 */}
-                      <div className="flex items-center gap-1 -mr-1">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (onBookmarkToggle) onBookmarkToggle(project.id, e);
-                          }}
-                          className={`p-1.5 rounded-md transition-colors ${
-                            project.bookmarked
-                              ? "text-amber-400 hover:bg-white/5"
-                              : "text-[#606060] hover:text-[#A0A0A0] hover:bg-white/5"
-                          }`}
-                        >
-                          <Star className="w-4 h-4" fill={project.bookmarked ? "currentColor" : "none"} />
-                        </button>
-                        
-                        {/* ··· 操作入口 */}
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setActiveMenuId(activeMenuId === project.id ? null : project.id);
-                          }}
-                          className="p-1.5 rounded-md text-[#606060] hover:text-[#A0A0A0] hover:bg-white/5 transition-colors"
-                        >
-                          <MoreHorizontal className="w-4 h-4" />
-                        </button>
+                        <div className="flex items-center">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (onBookmarkToggle) onBookmarkToggle(project.id, e);
+                            }}
+                            className={`p-1.5 rounded-md transition-colors ${
+                              project.bookmarked
+                                ? "text-amber-400 hover:bg-white/5"
+                                : "text-[#606060] hover:text-[#A0A0A0] hover:bg-white/5"
+                            }`}
+                          >
+                            <Star className="w-4 h-4" fill={project.bookmarked ? "currentColor" : "none"} />
+                          </button>
+                          
+                          {/* ··· 操作入口 */}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveMenuId(activeMenuId === project.id ? null : project.id);
+                            }}
+                            className="p-1.5 rounded-md text-[#606060] hover:text-[#A0A0A0] hover:bg-white/5 transition-colors"
+                          >
+                            <MoreHorizontal className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
                     </div>
 
-                    {/* 标题与简介：居中且放大 */}
-                    <div className="flex flex-col items-center text-center pb-2">
-                      <h3 className="text-[18px] md:text-[20px] font-black text-white leading-tight mb-2.5 tracking-wide drop-shadow-sm">
-                        {project.name}
-                      </h3>
-                      <p className="text-[13px] md:text-[14px] text-[#A0A0A0] leading-relaxed line-clamp-2 max-w-[90%]" style={{ wordBreak: "break-word" }}>
-                        {project.intro}
-                      </p>
+                    {/* 中部：左右分栏布局 */}
+                    <div className="flex items-start justify-between mt-3 gap-6">
+                      {/* 左侧：标题与状态标签 */}
+                      <div className="flex flex-col items-start shrink-0 max-w-[50%]">
+                        <h3 className="text-[22px] md:text-[24px] font-black text-white leading-tight tracking-wide drop-shadow-sm">
+                          {project.name}
+                        </h3>
+                        {recordCount > 0 && (
+                          <div className="mt-3">
+                            <span className="px-2.5 py-1 rounded-md bg-[#4cd7f6]/10 text-[10px] md:text-[11px] font-bold text-[#4cd7f6] tracking-wide">
+                              {recordCount} 条记录
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* 右侧：简介副标题 */}
+                      <div className="flex-1 text-right mt-1.5">
+                        <p className="text-[13px] md:text-[14px] text-[#A0A0A0] leading-relaxed line-clamp-3" style={{ wordBreak: "break-word" }}>
+                          {project.intro}
+                        </p>
+                      </div>
                     </div>
                   </div>
 
@@ -598,6 +661,130 @@ export default function LeaderboardView({ projects, initialFilter = "全部", on
       {/* 点击卡片外区域时关闭菜单 */}
       {activeMenuId && (
         <div className="fixed inset-0 z-10" onClick={() => setActiveMenuId(null)} />
+      )}
+
+      {/* 底部筛选抽屉 */}
+      {isFilterDrawerOpen && (
+        <div className="fixed inset-0 z-[110] flex flex-col justify-end">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsFilterDrawerOpen(false)} />
+          <div className="relative w-full md:max-w-[640px] md:mx-auto bg-[#1A1A1E] rounded-t-3xl border-t border-[#2A2A2E] shadow-[0_-10px_40px_rgba(0,0,0,0.8)] pb-8 pt-4 px-6 animate-slide-up max-h-[85vh] overflow-y-auto">
+            {/* 拖拽指示条 */}
+            <div className="w-12 h-1 bg-[#383838] rounded-full mx-auto mb-6" />
+            
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-[18px] font-bold text-white tracking-wide">深度筛选</h3>
+              <button onClick={() => setIsFilterDrawerOpen(false)} className="p-1.5 text-[#606060] hover:text-white rounded-lg hover:bg-white/5 transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-6">
+              {/* 一级分类 */}
+              <div>
+                <div className="text-[12px] font-medium text-[#707070] mb-3">一级分类</div>
+                <div className="flex flex-wrap gap-2.5">
+                  <button
+                    onClick={() => handleL1Click("全部")}
+                    className={`px-4 py-2.5 rounded-xl text-[13px] font-bold transition-all
+                      ${activeLevel1 === "全部" ? "bg-white/15 text-white shadow-inner" : "bg-black/30 text-[#808080] hover:bg-white/5"}`}
+                  >
+                    全部
+                  </button>
+                  {treeData.map(node => {
+                    const shortName = node.label.split('(')[0].trim();
+                    const isActive = activeLevel1 === shortName;
+                    return (
+                      <button
+                        key={node.id}
+                        onClick={() => handleL1Click(shortName)}
+                        className={`px-4 py-2.5 rounded-xl text-[13px] font-bold transition-all
+                          ${isActive ? "bg-white/15 text-white shadow-inner" : "bg-black/30 text-[#808080] hover:bg-white/5"}`}
+                        style={isActive && node.color ? { color: node.color } : {}}
+                      >
+                        {shortName}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* 二级与三级分类 */}
+              {currentL1Node && currentL1Node.children && currentL1Node.children.length > 0 && (
+                <>
+                  <div>
+                    <div className="text-[12px] font-medium text-[#707070] mb-3">二级分类</div>
+                  <div className="flex flex-wrap gap-2.5">
+                    <button
+                      onClick={() => setFilterTag(activeLevel1)}
+                      className={`px-4 py-2.5 rounded-xl text-[13px] font-bold transition-all
+                        ${!activeLevel2 ? "bg-white/15 text-white shadow-inner" : "bg-black/30 text-[#808080] hover:bg-white/5"}`}
+                    >
+                      不限
+                    </button>
+                    {currentL1Node.children.map(l2 => {
+                      const l2Name = l2.label.trim();
+                      const isActive = activeLevel2 === l2Name;
+                      return (
+                        <button
+                          key={l2.id}
+                          onClick={() => setFilterTag(`${activeLevel1} / ${l2Name}`)}
+                          className={`px-4 py-2.5 rounded-xl text-[13px] font-bold transition-all
+                            ${isActive ? "bg-white/15 text-white shadow-inner" : "bg-black/30 text-[#808080] hover:bg-white/5"}`}
+                        >
+                          {l2Name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* 三级分类 */}
+                {activeLevel2 && (() => {
+                  const currentL2Node = currentL1Node.children.find(n => n.label.trim() === activeLevel2);
+                  if (currentL2Node && currentL2Node.children && currentL2Node.children.length > 0) {
+                    return (
+                      <div>
+                        <div className="text-[12px] font-medium text-[#707070] mb-3">三级分类</div>
+                        <div className="flex flex-wrap gap-2.5">
+                          <button
+                            onClick={() => setFilterTag(`${activeLevel1} / ${activeLevel2}`)}
+                            className={`px-4 py-2.5 rounded-xl text-[13px] font-bold transition-all
+                              ${!activeLevel3 ? "bg-white/15 text-white shadow-inner" : "bg-black/30 text-[#808080] hover:bg-white/5"}`}
+                          >
+                            不限
+                          </button>
+                          {currentL2Node.children.map(l3 => {
+                            const l3Name = l3.label.trim();
+                            const isActive = activeLevel3 === l3Name;
+                            return (
+                              <button
+                                key={l3.id}
+                                onClick={() => setFilterTag(`${activeLevel1} / ${activeLevel2} / ${l3Name}`)}
+                                className={`px-4 py-2.5 rounded-xl text-[13px] font-bold transition-all
+                                  ${isActive ? "bg-[#D9A04A]/20 text-[#D9A04A] shadow-inner" : "bg-black/30 text-[#808080] hover:bg-white/5"}`}
+                              >
+                                {l3Name}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
+                </>
+              )}
+            </div>
+
+            <button 
+              onClick={() => setIsFilterDrawerOpen(false)}
+              className="w-full mt-8 py-3.5 bg-[#F0F0F0] text-black font-bold text-[15px] rounded-xl active:scale-[0.98] transition-transform"
+            >
+              完成筛选
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );
