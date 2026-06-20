@@ -30,6 +30,7 @@ export interface TiptapEditorRef {
 
 interface TiptapEditorProps {
   placeholder?: string;
+  initialContent?: string;
 }
 
 // ==================== 颜色预设 ====================
@@ -52,6 +53,42 @@ const HIGHLIGHT_COLORS = [
   { name: "粉色", value: "#fce7f3" },
   { name: "橙色", value: "#fed7aa" },
 ];
+
+
+// ==================== 图片上传辅助函数 ====================
+const handleImageUpload = (editor: any) => {
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = "image/*";
+  input.onchange = async (e: any) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      const formData = new FormData();
+      formData.append("file", file);
+      try {
+        const token = localStorage.getItem("stars:token");
+        const res = await fetch("/api/upload/image", {
+          method: "POST",
+          headers: { "Authorization": `Bearer ${token}` },
+          body: formData
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const url = data.data?.url || data.url;
+          if (url) {
+            editor.chain().focus().setImage({ src: url }).run();
+          }
+        } else {
+          alert("图片上传失败");
+        }
+      } catch (err) {
+        console.error("Image upload failed", err);
+        alert("网络错误，图片上传失败");
+      }
+    }
+  };
+  input.click();
+};
 
 // ==================== 斜杠命令定义 ====================
 interface SlashCommand {
@@ -82,8 +119,7 @@ const SLASH_COMMANDS: SlashCommand[] = [
     action: (e: any) => e.chain().focus().setHorizontalRule().run() },
   { title: "表格", description: "插入3×3表格", icon: <TableIcon className="w-4 h-4" />,
     action: (e: any) => e.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run() },
-  { title: "图片", description: "插入示例图片", icon: <ImageIcon className="w-4 h-4" />,
-    action: (e: any) => e.chain().focus().setImage({ src: "/images/mocks/hot_carousel_1.png" }).run() },
+  { title: "图片", description: "上传本地图片", icon: <ImageIcon className="w-4 h-4" />, action: (e: any) => handleImageUpload(e) },
 ];
 
 // ==================== 斜杠命令菜单组件 ====================
@@ -308,7 +344,7 @@ function CustomBubbleMenu({ editor }: { editor: any }) {
 
 // ==================== 主编辑器组件 ====================
 const TiptapEditor = forwardRef<TiptapEditorRef, TiptapEditorProps>(
-  ({ placeholder = "开始记录你的想法... 输入 / 唤起命令菜单" }, ref) => {
+  ({ placeholder = "开始记录你的想法... 输入 / 唤起命令菜单", initialContent = "" }, ref) => {
     const [showSlashMenu, setShowSlashMenu] = useState(false);
     const [slashMenuPos, setSlashMenuPos] = useState({ top: 0, left: 0 });
     const [slashQuery, setSlashQuery] = useState("");
@@ -333,7 +369,7 @@ const TiptapEditor = forwardRef<TiptapEditorRef, TiptapEditorProps>(
         TaskItem.configure({ nested: true }),
         Placeholder.configure({ placeholder }),
       ],
-      content: "",
+      content: initialContent,
       editorProps: {
         attributes: {
           class: "tiptap-prosemirror",
@@ -441,9 +477,7 @@ const TiptapEditor = forwardRef<TiptapEditorRef, TiptapEditorProps>(
             className="tb-btn" title="分割线">
             <Minus className="w-4 h-4" />
           </button>
-          <button onClick={() => {
-            editor.chain().focus().setImage({ src: "/images/mocks/hot_carousel_1.png" }).run();
-          }} className="tb-btn" title="插入图片">
+          <button onClick={() => handleImageUpload(editor)} className="tb-btn" title="插入图片">
             <ImageIcon className="w-4 h-4" />
           </button>
         </div>
