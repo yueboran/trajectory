@@ -23,35 +23,42 @@ function OrgNode({ node, isRoot = false, onClick }: { node: TreeNode, isRoot?: b
       {/* 节点纵向卡片 */}
       <div 
         onClick={() => onClick && onClick()}
-        className={`relative z-10 flex flex-col p-2.5 md:p-3 rounded-2xl border border-white/10 shadow-2xl hover:bg-white/10 transition-all
+        className={`relative z-10 flex flex-col p-2.5 md:p-3 rounded-2xl border border-white/10 shadow-2xl hover:bg-white/10 transition-all backdrop-blur-md bg-[#1a1b1e]/50
           ${onClick ? 'cursor-pointer hover:scale-105 active:scale-95' : 'cursor-default'}
-          ${isRoot ? "bg-white/5 w-full max-w-[145px] sm:max-w-none sm:w-[160px] md:w-[180px]" : "bg-black/60 w-[130px] sm:w-[140px] md:w-[150px]"}`}
+          ${isRoot ? "w-full max-w-[145px] sm:max-w-none sm:w-[160px] md:w-[180px]" : "w-[130px] sm:w-[140px] md:w-[150px]"}`}
       >
-        {/* 顶部正方形封面图 */}
-        <div 
-          className="w-full aspect-square rounded-xl bg-cover bg-center border border-white/10 shadow-inner relative overflow-hidden mb-2 md:mb-3" 
-          style={{ backgroundImage: `url(${node.image})` }} 
-        >
-          {isRoot && node.icon && (
-            <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-               <span style={{ color: node.color }}>
-                 {React.cloneElement(node.icon as React.ReactElement, { className: "w-8 h-8 md:w-10 md:h-10 opacity-80" })}
-               </span>
-            </div>
-          )}
-          {/* 边缘高亮 */}
-          <div className="absolute inset-0 rounded-xl ring-1 ring-inset" style={{ ringColor: node.color + "40" }} />
-        </div>
-        
-        {/* 底部文字区域 */}
-        <div className="w-full flex flex-col justify-start flex-1">
+        {/* 顶部主标题区 */}
+        <div className="w-full flex flex-col justify-center items-center mb-2.5 md:mb-3 px-1 mt-0.5">
           <h3 
-            className="font-display font-semibold text-center drop-shadow-sm mb-1.5 leading-snug line-clamp-2 tracking-wide" 
-            style={{ fontSize: isRoot ? '14px' : '11px', color: node.color }}
+            className="font-display font-black text-center leading-tight tracking-wider" 
+            style={{ 
+              fontSize: isRoot ? '18px' : '14px', 
+              color: node.color,
+              textShadow: `0 2px 10px rgba(0,0,0,0.8), 0 0 15px ${node.color}50`
+            }}
           >
             {node.label}
           </h3>
-          <p className="text-[#A0A0A0] text-[10px] md:text-[11px] text-center line-clamp-3 leading-relaxed font-light">
+        </div>
+
+        {/* 中间封面图 */}
+        <div 
+          className="w-full aspect-[5/3] rounded-xl bg-cover bg-center border border-white/5 shadow-inner relative overflow-hidden mb-2" 
+          style={{ backgroundImage: `url(${node.image})` }} 
+        >
+          {isRoot && node.icon && (
+            <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+               <span style={{ color: node.color }}>
+                 {React.cloneElement(node.icon as React.ReactElement, { className: "w-6 h-6 md:w-8 md:h-8 opacity-80" })}
+               </span>
+            </div>
+          )}
+          <div className="absolute inset-0 rounded-xl ring-1 ring-inset" style={{ ringColor: "rgba(255,255,255,0.05)" }} />
+        </div>
+        
+        {/* 底部摘要文字区域 */}
+        <div className="w-full flex flex-col justify-start flex-1">
+          <p className="text-[#909090] text-[10px] md:text-[11px] text-center line-clamp-3 leading-relaxed font-light pt-0.5">
             {node.summary}
           </p>
         </div>
@@ -328,7 +335,7 @@ export default function MindMapSection({ onBrowseProjects, onSubmitIdea, onCateg
                         key={child.id} 
                         node={child} 
                         isRoot={true} 
-                        onClick={isLoggedIn ? () => onCategorySelect && onCategorySelect(fullTag) : undefined}
+                        onClick={() => onCategorySelect && onCategorySelect(fullTag)}
                       />
                     );
                   })}

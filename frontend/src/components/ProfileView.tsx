@@ -581,40 +581,26 @@ export default function ProfileView({
         {/* Stats Panel (Glassmorphism over dark bg) */}
         <div className="px-4 md:px-6 py-2 -mt-6 relative z-20">
           
-                    <div className="rounded-xl p-5 bg-[#1a1b1f]/90 backdrop-blur-xl border border-white/10 shadow-2xl mb-6">
-            <div className="flex items-center gap-2 mb-4">
-              <Activity className="w-4 h-4 text-[#d0bcff]" />
-              <h3 className="text-white font-bold text-sm tracking-wide">档案统计数据</h3>
+                    {/* 数据看板 (Dashboard Panels) */}
+          <div className="mb-8 grid grid-cols-2 gap-3">
+            {/* 档案总数 */}
+            <div className="rounded-2xl p-4 bg-[#1A1A1E] border border-[#242428] shadow-lg flex flex-col justify-center items-center hover:bg-[#1f1f23] transition-colors">
+              <div className="w-8 h-8 rounded-full bg-[#d0bcff]/10 flex items-center justify-center mb-2.5 border border-[#d0bcff]/20">
+                <Briefcase className="w-4 h-4 text-[#d0bcff]" />
+              </div>
+              <span className="text-[22px] font-black text-white font-display mb-1 drop-shadow-sm">{allProjects.length}</span>
+              <span className="text-[11px] text-[#808080] font-medium tracking-wide">档案总数</span>
             </div>
-            <div className="w-full overflow-x-auto pb-2">
-              <table className="w-full text-left border-collapse min-w-[500px]">
-                <thead>
-                  <tr className="border-b border-white/10 text-[#cbc3d7] text-xs uppercase tracking-wider font-semibold bg-[#12161a]/50">
-                    <th className="p-3 rounded-tl-lg whitespace-nowrap">一级分类</th>
-                    <th className="p-3 whitespace-nowrap">二级分类</th>
-                    <th className="p-3 whitespace-nowrap">三级分类</th>
-                    <th className="p-3 whitespace-nowrap">档案库名称</th>
-                    <th className="p-3 text-right rounded-tr-lg whitespace-nowrap">记录数量</th>
-                  </tr>
-                </thead>
-                <tbody className="text-sm text-[#e0e0e0]">
-                  {allProjects.map(proj => {
-                    const parts = proj.tags && proj.tags[0] ? proj.tags[0].split(" / ") : ["-", "-", "-"];
-                    const l1 = parts[0] || "-";
-                    const l2 = parts[1] || "-";
-                    const l3 = parts[2] || "-";
-                    return (
-                      <tr key={proj.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
-                        <td className="p-3 text-[#A0A0A0]">{l1}</td>
-                        <td className="p-3 text-[#A0A0A0]">{l2}</td>
-                        <td className="p-3 text-amber-400/80">{l3}</td>
-                        <td className="p-3 font-medium text-[#DCDCDC]">{proj.name}</td>
-                        <td className="p-3 text-right text-[#4cd7f6]">{proj.comments ? proj.comments.length : 0}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+            
+            {/* 记录总数 */}
+            <div className="rounded-2xl p-4 bg-[#1A1A1E] border border-[#242428] shadow-lg flex flex-col justify-center items-center hover:bg-[#1f1f23] transition-colors">
+              <div className="w-8 h-8 rounded-full bg-[#4cd7f6]/10 flex items-center justify-center mb-2.5 border border-[#4cd7f6]/20">
+                <Edit2 className="w-4 h-4 text-[#4cd7f6]" />
+              </div>
+              <span className="text-[22px] font-black text-white font-display mb-1 drop-shadow-sm">
+                {allProjects.reduce((sum, p) => sum + (p.comments?.length || 0), 0)}
+              </span>
+              <span className="text-[11px] text-[#808080] font-medium tracking-wide">记录总数</span>
             </div>
           </div>
 
@@ -648,7 +634,18 @@ export default function ProfileView({
             <div>
               {activeFilter === "archive_bookmarks" && (
                 archiveBookmarks.length === 0 ? (
-                  <div className="py-12 text-center text-[#505050] font-medium text-[13px]">暂无档案收藏</div>
+                  <div className="py-20 flex flex-col items-center justify-center text-center">
+                    <div className="relative mb-6">
+                      <div className="absolute inset-0 bg-[#d0bcff] opacity-20 blur-2xl rounded-full scale-150" />
+                      <div className="w-20 h-20 rounded-3xl bg-[#1A1A1E] border border-white/10 flex items-center justify-center relative z-10 shadow-2xl">
+                        <Bookmark className="w-8 h-8 text-[#d0bcff]" strokeWidth={1.5} />
+                      </div>
+                    </div>
+                    <h3 className="text-[16px] font-bold text-[#E0E0E0] mb-2 tracking-wide">暂无档案收藏</h3>
+                    <p className="text-[13px] text-[#707070] max-w-[240px] leading-relaxed mb-6">
+                      你还没有收藏任何资产，去档案馆逛逛吧，发现有价值的知识体系。
+                    </p>
+                  </div>
                 ) : (
                   <div className="flex flex-col">
                     {archiveBookmarks.map(p => {
@@ -742,7 +739,18 @@ export default function ProfileView({
               )}
               {activeFilter === "record_bookmarks" && (
                 recordBookmarks.length === 0 ? (
-                  <div className="py-12 text-center text-[#505050] font-medium text-[13px]">暂无记录收藏</div>
+                  <div className="py-20 flex flex-col items-center justify-center text-center">
+                    <div className="relative mb-6">
+                      <div className="absolute inset-0 bg-[#4cd7f6] opacity-20 blur-2xl rounded-full scale-150" />
+                      <div className="w-20 h-20 rounded-3xl bg-[#1A1A1E] border border-white/10 flex items-center justify-center relative z-10 shadow-2xl">
+                        <Star className="w-8 h-8 text-[#4cd7f6]" strokeWidth={1.5} />
+                      </div>
+                    </div>
+                    <h3 className="text-[16px] font-bold text-[#E0E0E0] mb-2 tracking-wide">暂无记录收藏</h3>
+                    <p className="text-[13px] text-[#707070] max-w-[240px] leading-relaxed mb-6">
+                      遇到有启发的单条认知记录时点击收藏，它们会出现在这里。
+                    </p>
+                  </div>
                 ) : (
                   <div className="flex flex-col">
                     {recordBookmarks.map(r => {
@@ -827,7 +835,18 @@ export default function ProfileView({
               )}
               {activeFilter === "draft_records" && (
                 draftRecords.length === 0 ? (
-                  <div className="py-12 text-center text-[#505050] font-medium text-[13px]">暂无待发布记录</div>
+                  <div className="py-20 flex flex-col items-center justify-center text-center">
+                    <div className="relative mb-6">
+                      <div className="absolute inset-0 bg-amber-400 opacity-20 blur-2xl rounded-full scale-150" />
+                      <div className="w-20 h-20 rounded-3xl bg-[#1A1A1E] border border-white/10 flex items-center justify-center relative z-10 shadow-2xl">
+                        <Edit2 className="w-8 h-8 text-amber-400" strokeWidth={1.5} />
+                      </div>
+                    </div>
+                    <h3 className="text-[16px] font-bold text-[#E0E0E0] mb-2 tracking-wide">空空如也的草稿箱</h3>
+                    <p className="text-[13px] text-[#707070] max-w-[240px] leading-relaxed mb-6">
+                      这里存放你记录到一半的想法，随时可以回来继续完善。
+                    </p>
+                  </div>
                 ) : (
                   <div className="flex flex-col">
                     {draftRecords.map(r => {
