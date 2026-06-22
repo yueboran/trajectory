@@ -49,11 +49,11 @@ function OrgNode({ node, isRoot = false, onClick }: { node: TreeNode, isRoot?: b
           {isRoot && node.icon && (
             <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
                <span style={{ color: node.color }}>
-                 {React.cloneElement(node.icon as React.ReactElement, { className: "w-6 h-6 md:w-8 md:h-8 opacity-80" })}
+                 {React.cloneElement(node.icon as React.ReactElement<any>, { className: "w-6 h-6 md:w-8 md:h-8 opacity-80" })}
                </span>
             </div>
           )}
-          <div className="absolute inset-0 rounded-xl ring-1 ring-inset" style={{ ringColor: "rgba(255,255,255,0.05)" }} />
+          <div className="absolute inset-0 rounded-xl ring-1 ring-inset" style={{ '--tw-ring-color': "rgba(255,255,255,0.05)" } as any} />
         </div>
         
         {/* 底部摘要文字区域 */}
@@ -247,7 +247,7 @@ export default function MindMapSection({ onBrowseProjects, onSubmitIdea, onCateg
                         boxShadow: `0 0 25px ${node.color}25`
                       } : {}}
                     >
-                      {node.icon && React.cloneElement(node.icon as React.ReactElement, { className: "w-3.5 h-3.5 sm:w-4 sm:h-4 md:w-5 md:h-5 shrink-0" })}
+                      {node.icon && React.cloneElement(node.icon as React.ReactElement<any>, { className: "w-3.5 h-3.5 sm:w-4 sm:h-4 md:w-5 md:h-5 shrink-0" })}
                       <span className="font-bold text-[10px] sm:text-[12px] md:text-sm tracking-wide whitespace-nowrap">{shortLabel}</span>
                     </button>
 

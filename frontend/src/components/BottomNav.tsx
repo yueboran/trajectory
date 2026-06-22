@@ -14,7 +14,7 @@ interface BottomNavProps {
 export default function BottomNav({ currentTab, onChangeTab }: BottomNavProps) {
   const navItems = [
     { id: "home", label: "首页", icon: Home },
-    { id: "ranking", label: "档案馆", icon: Archive },
+    { id: "archive", label: "档案馆", icon: Archive },
     { id: "submit", label: "草稿箱", icon: PlusCircle },
     { id: "profile", label: "我的", icon: User },
   ];

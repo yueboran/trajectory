@@ -13,7 +13,7 @@ import SubmitForm from "./components/SubmitForm";
 import TimelineFeed from "./components/TimelineFeed";
 import Methodology from "./components/Methodology";
 import ProfileView from "./components/ProfileView";
-import LeaderboardView from "./components/LeaderboardView";
+import ArchiveView from "./components/ArchiveView";
 import StarMapGraph from "./components/StarMapGraph";
 import AuthPage from "./components/AuthPage";
 import ConfirmModal from "./components/ConfirmModal";
@@ -724,7 +724,7 @@ export default function App() {
                 onSubmitIdea={() => setActiveTab("submit")}
                 onCategorySelect={(filter) => {
                   setArchiveInitialFilter(filter);
-                  setActiveTab("ranking");
+                  setActiveTab("archive");
                 }}
               />
               
@@ -812,7 +812,7 @@ export default function App() {
                 setSubmitTargetProjectId(null);
                 setSubmitRatingFields([]);
                 setSubmitCustomInputs([]);
-                setActiveTab("ranking"); // Reset bottom tab to leaderboard/archive so SubmitForm doesn't remain
+                setActiveTab("archive"); // Reset bottom tab to archive so SubmitForm doesn't remain
                 
                 // 如果是通过编辑草稿发布的，我们发布成功后应当删除它
                 if (submitInitialDraft) {
@@ -830,7 +830,7 @@ export default function App() {
                 
                 if (prevProjectId) {
                   setActiveProjectId(prevProjectId);
-                  setActiveTab("ranking");
+                  setActiveTab("archive");
                 } else {
                   setActiveTab("home");
                 }
@@ -861,9 +861,9 @@ export default function App() {
             <TimelineFeed onSelectProjectName={handleSelectProjectByName} />
           )}
 
-          {/* Tab 5: Dynamic Leaderboard Rankings */}
-          {activeTab === "ranking" && (
-            <LeaderboardView
+          {/* Tab 5: Archive List */}
+          {activeTab === "archive" && (
+            <ArchiveView
               projects={projectsList}
               initialFilter={archiveInitialFilter}
               currentUser={currentUser}
